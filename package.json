@@ -1,0 +1,28 @@
+{
+  "name": "nexora-mail",
+  "version": "1.0.0",
+  "description": "NEXORA MAIL - Premium Full-Stack Gmail Management Web Application",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
+    "build": "npm --prefix frontend run build",
+    "build:all": "npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build",
+    "start": "node backend/server.js",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "node scripts/dev.js",
+    "test": "node scripts/verify-build.js"
+  },
+  "keywords": [
+    "gmail",
+    "email-client",
+    "full-stack",
+    "react",
+    "express",
+    "mongodb",
+    "oauth2"
+  ],
+  "author": "NEXORA Team",
+  "license": "MIT"
+}
