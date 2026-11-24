@@ -41,10 +41,10 @@ export function AuthProvider({ children }) {
       if (res && res.url) {
         window.location.href = res.url;
       } else {
-        error('Could not initiate Google Sign-In. Check server configuration.');
+        error(res?.message || 'Could not initiate Google Sign-In. Check your .env credentials.');
       }
     } catch (err) {
-      error(err.message || 'Failed to start Google sign-in.');
+      error(err.message || 'Failed to start Google sign-in. Please update GOOGLE_CLIENT_ID in your .env file.');
     }
   };
 

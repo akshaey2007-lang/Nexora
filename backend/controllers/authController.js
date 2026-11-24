@@ -8,6 +8,22 @@ import { DEMO_USER } from '../middleware/authMiddleware.js';
 
 export async function getGoogleAuthUrl(req, res) {
   try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (
+      !clientId ||
+      clientId.includes('your_google_client_id') ||
+      !clientSecret ||
+      clientSecret.includes('your_google_client_secret')
+    ) {
+      return res.status(400).json({
+        success: false,
+        code: 'MISSING_GOOGLE_CREDENTIALS',
+        message: 'Google Client ID or Client Secret has not been set yet. Please paste your real credentials into your .env file (or Render dashboard), or click "Explore Interactive Demo" in the meantime.'
+      });
+    }
+
     const stateToken = generateStateToken();
     req.session.oauthState = stateToken;
 
