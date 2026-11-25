@@ -3,6 +3,7 @@ import {
   getGoogleAuthUrl,
   handleGoogleCallback,
   getCurrentUser,
+  getPublicConfig,
   logout,
   disconnectGoogle,
   enableDemoMode
@@ -11,6 +12,9 @@ import { requireAuth } from '../middleware/authMiddleware.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
+
+// Public configuration check
+router.get('/config', getPublicConfig);
 
 // OAuth initiate & callback
 router.get('/google', authLimiter, getGoogleAuthUrl);

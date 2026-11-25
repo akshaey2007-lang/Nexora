@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import { isDbConnected } from '../config/db.js';
 import { logger } from '../utils/logger.js';
 
 export const DEMO_USER = {
@@ -13,61 +14,53 @@ export const DEMO_USER = {
 };
 
 /**
- * Middleware to require authenticated session (or demo session)
+ * Middleware to require authenticated session (Google OAuth user or explicitly activated Demo session)
  */
 export async function requireAuth(req, res, next) {
   try {
-    // Check if session explicitly marked as Demo
-    if (req.session && req.session.isDemo) {
+    const demoAllowed = process.env.DEMO_MODE_FALLBACK === 'true';
+
+    // 1. Check if user explicitly activated Demo Mode
+    if (req.session && req.session.isDemo && demoAllowed) {
       req.user = DEMO_USER;
       req.isDemo = true;
       return next();
     }
 
-    if (!req.session || !req.session.userId) {
-      // If DEMO_MODE_FALLBACK is true and no user is logged in, optionally check for demo query or header
-      if (req.headers['x-demo-mode'] === 'true' || process.env.DEMO_MODE_FALLBACK === 'true') {
-        // Fallback to demo mode if allowed
-        req.user = DEMO_USER;
-        req.isDemo = true;
-        return next();
-      }
-
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required. Please sign in with Google.',
-        code: 'UNAUTHORIZED'
-      });
+    // 2. Allow explicit demo header only when demo mode is enabled
+    if (req.headers['x-demo-mode'] === 'true' && demoAllowed) {
+      req.user = DEMO_USER;
+      req.isDemo = true;
+      return next();
     }
 
-    // Retrieve user from DB
-    try {
-      const user = await User.findById(req.session.userId);
-      if (!user) {
-        req.session.destroy();
-        return res.status(401).json({
-          success: false,
-          message: 'User session invalid. Please log in again.',
-          code: 'USER_NOT_FOUND'
-        });
+    // 3. Check authenticated MongoDB user session
+    if (req.session && req.session.userId && isDbConnected()) {
+      try {
+        const user = await User.findById(req.session.userId);
+        if (user && user.isConnected) {
+          req.user = user;
+          req.isDemo = false;
+          return next();
+        }
+      } catch (dbErr) {
+        logger.error('DB error during user authentication', dbErr.message);
       }
+    }
 
-      req.user = user;
+    // 4. Fallback to session-stored OAuth user (used when MongoDB is unavailable or temporarily disconnected)
+    if (req.session && req.session.oauthSessionUser && req.session.oauthSessionUser.isConnected) {
+      req.user = req.session.oauthSessionUser;
       req.isDemo = false;
-      next();
-    } catch (dbErr) {
-      logger.error('DB error during user authentication', dbErr.message);
-      // If DB is offline, fall back to demo mode if allowed
-      if (process.env.DEMO_MODE_FALLBACK === 'true') {
-        req.user = DEMO_USER;
-        req.isDemo = true;
-        return next();
-      }
-      return res.status(500).json({
-        success: false,
-        message: 'Database authentication service unavailable.'
-      });
+      return next();
     }
+
+    // 5. Reject unauthenticated requests cleanly (never silently force demo mode)
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required. Please sign in with Google.',
+      code: 'UNAUTHORIZED'
+    });
   } catch (error) {
     logger.error('Authentication middleware error', error.message);
     return res.status(500).json({

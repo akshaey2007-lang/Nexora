@@ -105,11 +105,16 @@ export function EmailProvider({ children }) {
     }
   }, [error, fetchCounts]);
 
-  // Initial & Dependency Load
+  // Initial & Dependency Load (and clear state on logout)
   useEffect(() => {
     if (isAuthenticated) {
       loadEmails(currentFolder, searchQuery);
       fetchCounts();
+    } else {
+      setEmails([]);
+      setSelectedEmail(null);
+      setSelectedEmailId(null);
+      setCounts({ inbox: 0, starred: 0, sent: 0, drafts: 0, spam: 0, trash: 0, important: 0 });
     }
   }, [isAuthenticated, currentFolder, searchQuery, loadEmails, fetchCounts]);
 

@@ -1,6 +1,10 @@
 import api from './api';
 
 export const authService = {
+  getPublicConfig: async () => {
+    return await api.get('/api/auth/config');
+  },
+
   getAuthUrl: async () => {
     return await api.get('/auth/google');
   },

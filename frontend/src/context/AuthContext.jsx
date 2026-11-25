@@ -9,23 +9,41 @@ export function AuthProvider({ children }) {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
+  const [demoModeAvailable, setDemoModeAvailable] = useState(false);
   const [hasLiveCredentials, setHasLiveCredentials] = useState(true);
   const { error, success } = useToast();
 
   const fetchCurrentUser = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await authService.getCurrentUser();
-      if (res && res.success) {
+      const [configRes, userRes] = await Promise.allSettled([
+        authService.getPublicConfig(),
+        authService.getCurrentUser()
+      ]);
+
+      if (configRes.status === 'fulfilled' && configRes.value?.success) {
+        setDemoModeAvailable(Boolean(configRes.value.demoModeAvailable));
+        setHasLiveCredentials(Boolean(configRes.value.hasLiveCredentials));
+      }
+
+      if (userRes.status === 'fulfilled' && userRes.value?.success) {
+        const res = userRes.value;
         setUser(res.user);
         setSettings(res.settings);
         setIsDemo(Boolean(res.isDemo));
-        setHasLiveCredentials(Boolean(res.hasLiveCredentials));
+        if (res.demoModeAvailable !== undefined) {
+          setDemoModeAvailable(Boolean(res.demoModeAvailable));
+        }
+        if (res.hasLiveCredentials !== undefined) {
+          setHasLiveCredentials(Boolean(res.hasLiveCredentials));
+        }
       } else {
         setUser(null);
+        setIsDemo(false);
       }
     } catch (err) {
       setUser(null);
+      setIsDemo(false);
     } finally {
       setLoading(false);
     }
@@ -97,6 +115,7 @@ export function AuthProvider({ children }) {
         setSettings,
         loading,
         isDemo,
+        demoModeAvailable,
         hasLiveCredentials,
         loginWithGoogle,
         activateDemoMode,

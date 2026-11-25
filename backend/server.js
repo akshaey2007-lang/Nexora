@@ -101,8 +101,8 @@ app.use(
     store,
     cookie: {
       httpOnly: true,
-      secure: isProd, // True on HTTPS production
-      sameSite: isProd ? 'none' : 'lax', // 'none' needed if frontend and backend are on different domains
+      secure: 'auto', // Uses HTTPS cookies in production (via trust proxy) and works on HTTP localhost
+      sameSite: 'lax', // Preserves session across Google OAuth top-level GET redirects without 3rd-party cookie blocking
       maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
     }
   })
@@ -110,13 +110,23 @@ app.use(
 
 // 6. Health Check Endpoint
 app.get('/api/health', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || '';
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
+  const hasGoogleCredentials = Boolean(
+    clientId &&
+    !clientId.includes('your_google_client_id') &&
+    clientSecret &&
+    !clientSecret.includes('your_google_client_secret')
+  );
+
   res.json({
     status: 'healthy',
     service: 'NEXORA MAIL API',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    database: isDbConnected() ? 'connected' : 'standalone/demo',
-    hasGoogleCredentials: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    database: isDbConnected() ? 'connected' : 'standalone/session',
+    hasGoogleCredentials,
+    demoModeEnabled: process.env.DEMO_MODE_FALLBACK === 'true',
     environment: process.env.NODE_ENV || 'development'
   });
 });

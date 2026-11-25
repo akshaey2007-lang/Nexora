@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 export default function AuthErrorPage() {
   const [searchParams] = useSearchParams();
   const errorParam = searchParams.get('error') || 'unknown_error';
-  const { loginWithGoogle, activateDemoMode } = useAuth();
+  const { loginWithGoogle, activateDemoMode, demoModeAvailable } = useAuth();
   const navigate = useNavigate();
 
   const handleDemo = async () => {
@@ -59,13 +59,15 @@ export default function AuthErrorPage() {
             <span>Try Connecting Again</span>
           </button>
 
-          <button
-            onClick={handleDemo}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-nexora-ivory dark:bg-nexora-dark-card border border-nexora-border dark:border-nexora-border-dark text-nexora-navy dark:text-white font-semibold text-sm hover:bg-gray-100 dark:hover:bg-nexora-navy transition-colors"
-          >
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            <span>Continue in Interactive Demo Mode</span>
-          </button>
+          {demoModeAvailable && (
+            <button
+              onClick={handleDemo}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-nexora-ivory dark:bg-nexora-dark-card border border-nexora-border dark:border-nexora-border-dark text-nexora-navy dark:text-white font-semibold text-sm hover:bg-gray-100 dark:hover:bg-nexora-navy transition-colors"
+            >
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Continue in Interactive Demo Mode</span>
+            </button>
+          )}
 
           <div className="text-center pt-2">
             <Link

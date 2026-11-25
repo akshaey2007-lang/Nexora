@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function LandingPage() {
-  const { loginWithGoogle, activateDemoMode, loading, isAuthenticated } = useAuth();
+  const { user, loginWithGoogle, activateDemoMode, logout, loading, isAuthenticated, demoModeAvailable } = useAuth();
   const navigate = useNavigate();
 
   const handleDemoClick = async () => {
@@ -44,22 +44,35 @@ export default function LandingPage() {
 
         <div className="flex items-center gap-4">
           {isAuthenticated ? (
-            <button
-              onClick={handleDashboardClick}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-nexora-electric text-white font-semibold text-sm hover:bg-nexora-electric-hover transition-all shadow-nexora-md"
-            >
-              <span>Go to Dashboard</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="hidden md:inline text-xs font-medium text-nexora-muted">
+                Signed in as <strong className="text-nexora-navy dark:text-white">{user?.email}</strong>
+              </span>
+              <button
+                onClick={handleDashboardClick}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-nexora-electric text-white font-semibold text-sm hover:bg-nexora-electric-hover transition-all shadow-nexora-md"
+              >
+                <span>Open Inbox</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={logout}
+                className="px-3.5 py-2.5 rounded-xl border border-nexora-border dark:border-nexora-border-dark text-xs font-semibold text-nexora-muted hover:text-nexora-navy dark:hover:text-white transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
           ) : (
             <>
-              <button
-                onClick={handleDemoClick}
-                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-nexora-border dark:border-nexora-border-dark font-semibold text-sm hover:bg-nexora-ivory dark:hover:bg-nexora-dark-card transition-colors"
-              >
-                <Sparkles className="w-4 h-4 text-nexora-electric" />
-                <span>Live Interactive Demo</span>
-              </button>
+              {demoModeAvailable && (
+                <button
+                  onClick={handleDemoClick}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-nexora-border dark:border-nexora-border-dark font-semibold text-sm hover:bg-nexora-ivory dark:hover:bg-nexora-dark-card transition-colors"
+                >
+                  <Sparkles className="w-4 h-4 text-nexora-electric" />
+                  <span>Live Interactive Demo</span>
+                </button>
+              )}
 
               <button
                 onClick={loginWithGoogle}
@@ -95,23 +108,36 @@ export default function LandingPage() {
 
         {/* CTA Buttons */}
         <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-          <button
-            onClick={loginWithGoogle}
-            disabled={loading}
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-nexora-electric text-white font-bold text-base hover:bg-nexora-electric-hover hover:shadow-nexora-glow transition-all"
-          >
-            <Mail className="w-5 h-5" />
-            <span>Connect Your Gmail Account</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          {isAuthenticated ? (
+            <button
+              onClick={handleDashboardClick}
+              className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-nexora-electric text-white font-bold text-base hover:bg-nexora-electric-hover hover:shadow-nexora-glow transition-all"
+            >
+              <Mail className="w-5 h-5" />
+              <span>Go to My Inbox ({user?.email})</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={loginWithGoogle}
+              disabled={loading}
+              className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-nexora-electric text-white font-bold text-base hover:bg-nexora-electric-hover hover:shadow-nexora-glow transition-all"
+            >
+              <Mail className="w-5 h-5" />
+              <span>Connect Your Gmail Account</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
 
-          <button
-            onClick={handleDemoClick}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark text-nexora-navy dark:text-white font-bold text-base hover:bg-nexora-ivory dark:hover:bg-nexora-dark-card transition-all shadow-nexora-sm"
-          >
-            <Sparkles className="w-5 h-5 text-amber-500" />
-            <span>Explore Interactive Demo</span>
-          </button>
+          {demoModeAvailable && !isAuthenticated && (
+            <button
+              onClick={handleDemoClick}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark text-nexora-navy dark:text-white font-bold text-base hover:bg-nexora-ivory dark:hover:bg-nexora-dark-card transition-all shadow-nexora-sm"
+            >
+              <Sparkles className="w-5 h-5 text-amber-500" />
+              <span>Explore Interactive Demo</span>
+            </button>
+          )}
         </div>
 
         {/* Key Architectural Highlights */}

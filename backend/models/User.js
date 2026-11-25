@@ -28,6 +28,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    encryptedAccessToken: {
+      type: String,
+      default: null
+    },
+    tokenExpiry: {
+      type: Number,
+      default: null
+    },
     isConnected: {
       type: Boolean,
       default: true

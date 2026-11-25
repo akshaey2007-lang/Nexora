@@ -1,19 +1,30 @@
+import mongoose from 'mongoose';
 import UserSettings from '../models/UserSettings.js';
+import { isDbConnected } from '../config/db.js';
 import { logger } from '../utils/logger.js';
+
+const DEFAULT_SETTINGS = {
+  theme: 'light',
+  sidebarCollapsed: false,
+  notificationsEnabled: true,
+  emailsPerPage: 25,
+  signature: '--\nSent with NEXORA MAIL',
+  timezone: 'UTC'
+};
 
 export async function getSettings(req, res) {
   try {
     if (req.isDemo) {
       return res.json({
         success: true,
-        settings: {
-          theme: 'light',
-          sidebarCollapsed: false,
-          notificationsEnabled: true,
-          emailsPerPage: 25,
-          signature: '--\nSent with NEXORA MAIL',
-          timezone: 'UTC'
-        }
+        settings: req.session?.tempSettings || DEFAULT_SETTINGS
+      });
+    }
+
+    if (!isDbConnected() || !req.user?._id || !mongoose.Types.ObjectId.isValid(req.user._id)) {
+      return res.json({
+        success: true,
+        settings: req.session?.tempSettings || DEFAULT_SETTINGS
       });
     }
 
@@ -39,18 +50,24 @@ export async function updateSettings(req, res) {
   try {
     const { theme, sidebarCollapsed, notificationsEnabled, emailsPerPage, signature, timezone } = req.body;
 
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        settings: {
-          theme: theme || 'light',
-          sidebarCollapsed: Boolean(sidebarCollapsed),
-          notificationsEnabled: notificationsEnabled !== undefined ? notificationsEnabled : true,
-          emailsPerPage: emailsPerPage || 25,
-          signature: signature || '',
-          timezone: timezone || 'UTC'
-        },
-        message: 'Settings updated (Demo session)'
+    const merged = {
+      ...(req.session?.tempSettings || DEFAULT_SETTINGS),
+      ...(theme && { theme }),
+      ...(sidebarCollapsed !== undefined && { sidebarCollapsed: Boolean(sidebarCollapsed) }),
+      ...(notificationsEnabled !== undefined && { notificationsEnabled: Boolean(notificationsEnabled) }),
+      ...(emailsPerPage && { emailsPerPage }),
+      ...(signature !== undefined && { signature }),
+      ...(timezone && { timezone })
+    };
+
+    if (req.isDemo || !isDbConnected() || !req.user?._id || !mongoose.Types.ObjectId.isValid(req.user._id)) {
+      req.session.tempSettings = merged;
+      return req.session.save(() => {
+        res.json({
+          success: true,
+          settings: merged,
+          message: req.isDemo ? 'Settings updated (Demo session)' : 'Settings saved for current session.'
+        });
       });
     }
 
