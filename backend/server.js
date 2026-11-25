@@ -15,6 +15,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import emailRoutes from './routes/emailRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import { handleGoogleCallback } from './controllers/authController.js';
 
 // Resolve environment paths
 const __filename = fileURLToPath(import.meta.url);
@@ -139,6 +140,14 @@ app.use('/api/settings', settingsRoutes);
 
 // 8. Production Static File Serving (Monorepo deployment on Render)
 const frontendDistPath = path.join(rootDir, 'frontend', 'dist');
+
+// Handle Google OAuth callbacks sent to root '/' if GOOGLE_REDIRECT_URI omits '/auth/google/callback'
+app.get('/', (req, res, next) => {
+  if (req.query.code || req.query.error) {
+    return handleGoogleCallback(req, res, next);
+  }
+  return next();
+});
 
 if (fs.existsSync(frontendDistPath)) {
   logger.info(`Serving static frontend assets from ${frontendDistPath}`);

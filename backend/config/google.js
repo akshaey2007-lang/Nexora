@@ -37,7 +37,7 @@ export function generateAuthUrl(stateToken) {
 
   return oauth2Client.generateAuthUrl({
     access_type: 'offline', // Requests refresh token
-    prompt: 'consent',     // Ensures refresh token is always returned
+    prompt: 'select_account consent', // Always show Google account picker & request refresh token
     scope: GMAIL_SCOPES,
     state: stateToken,
     include_granted_scopes: true

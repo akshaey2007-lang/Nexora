@@ -109,12 +109,20 @@ export default function SettingsPage() {
                 Connect Real Gmail
               </button>
             ) : (
-              <button
-                onClick={disconnect}
-                className="px-4 py-2 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-              >
-                Disconnect Account
-              </button>
+              <>
+                <button
+                  onClick={loginWithGoogle}
+                  className="px-4 py-2 rounded-xl bg-nexora-electric text-white text-xs font-semibold hover:bg-nexora-electric-hover transition-colors shadow-sm"
+                >
+                  Switch Account
+                </button>
+                <button
+                  onClick={disconnect}
+                  className="px-4 py-2 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                >
+                  Disconnect Account
+                </button>
+              </>
             )}
           </div>
         </div>

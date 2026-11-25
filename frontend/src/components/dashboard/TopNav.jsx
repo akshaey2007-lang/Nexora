@@ -8,7 +8,8 @@ import {
   Settings,
   Shield,
   X,
-  ExternalLink
+  ExternalLink,
+  UserPlus
 } from 'lucide-react';
 import { useEmails } from '../../context/EmailContext';
 import { useAuth } from '../../context/AuthContext';
@@ -17,7 +18,7 @@ import { Link } from 'react-router-dom';
 
 export default function TopNav() {
   const { searchQuery, setSearchQuery, loadEmails, loadingEmails } = useEmails();
-  const { user, isDemo, logout, disconnect } = useAuth();
+  const { user, isDemo, loginWithGoogle, logout, disconnect } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const [inputVal, setInputVal] = useState(searchQuery);
@@ -139,6 +140,17 @@ export default function TopNav() {
                   <Settings className="w-4 h-4 text-nexora-muted" />
                   <span>Account & Settings</span>
                 </Link>
+
+                <button
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    loginWithGoogle();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-nexora-electric hover:bg-nexora-electric/10 rounded-xl transition-colors"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Switch Google Account</span>
+                </button>
 
                 <button
                   onClick={() => {

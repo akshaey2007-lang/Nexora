@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Shield,
   Zap,
@@ -12,11 +12,20 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function LandingPage() {
   const { user, loginWithGoogle, activateDemoMode, logout, loading, isAuthenticated, demoModeAvailable } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // If Google OAuth redirected to '/' with ?code=... or ?error=... (e.g. in local dev proxy), forward to backend callback
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('code') || params.get('error')) {
+      window.location.replace(`/auth/google/callback${location.search}`);
+    }
+  }, [location.search]);
 
   const handleDemoClick = async () => {
     const ok = await activateDemoMode();
