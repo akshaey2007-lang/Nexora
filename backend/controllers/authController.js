@@ -101,7 +101,8 @@ export async function getGoogleAuthUrl(req, res) {
     req.session.oauthState = stateToken;
     req.session.returnOrigin = resolveFrontendRedirectBase(req);
 
-    const url = generateAuthUrl(stateToken);
+    const forceConsent = req.query.reconsent === 'true';
+    const url = generateAuthUrl(stateToken, { forceConsent });
 
     // Ensure session state is persisted to MongoStore/MemoryStore BEFORE browser redirects to Google
     req.session.save((err) => {

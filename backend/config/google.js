@@ -32,12 +32,12 @@ export function getOAuth2Client() {
 /**
  * Generates an authorization URL with a secure cryptographic state token
  */
-export function generateAuthUrl(stateToken) {
+export function generateAuthUrl(stateToken, { forceConsent = false } = {}) {
   const oauth2Client = getOAuth2Client();
 
   return oauth2Client.generateAuthUrl({
-    access_type: 'offline', // Requests refresh token
-    prompt: 'select_account consent', // Always show Google account picker & request refresh token
+    access_type: 'offline', // Requests refresh token on first grant
+    prompt: forceConsent ? 'select_account consent' : 'select_account',
     scope: GMAIL_SCOPES,
     state: stateToken,
     include_granted_scopes: true
