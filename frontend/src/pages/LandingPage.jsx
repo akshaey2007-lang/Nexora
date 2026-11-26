@@ -29,15 +29,27 @@ export default function LandingPage() {
         <div className="flex items-center gap-2.5">
           <img
             src="/nexora-icon.png"
-            alt="Nexora Mail"
+            alt="NEXORA MAIL"
             className="w-8 h-8 object-contain flex-shrink-0"
           />
           <span className="font-semibold text-base tracking-tight text-slate-900 dark:text-white">
-            Nexora Mail
+            NEXORA MAIL
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          <nav className="hidden sm:flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <a href="#how-it-works" className="hover:text-slate-900 dark:hover:text-white">
+              Features
+            </a>
+            <Link to="/privacy" className="hover:text-slate-900 dark:hover:text-white">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="hover:text-slate-900 dark:hover:text-white">
+              Terms
+            </Link>
+          </nav>
+
           {isAuthenticated ? (
             <>
               <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400">
@@ -77,11 +89,11 @@ export default function LandingPage() {
         </div>
 
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl leading-[1.12] text-slate-900 dark:text-white">
-          A focused workspace for your Gmail inbox.
+          NEXORA MAIL — A focused workspace for your Gmail inbox.
         </h1>
 
         <p className="mt-5 text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
-          Read, compose, triage, and search your live Gmail messages inside a fast, distraction-free interface backed by server-side OAuth 2.0 and encrypted token storage.
+          NEXORA MAIL is an email management web application powered by the Google Gmail API. Connect your Gmail account to read conversations, compose rich-text emails with attachments, search across labels, and organize your mailbox without clutter.
         </p>
 
         {/* Primary CTA */}
@@ -146,11 +158,49 @@ export default function LandingPage() {
             </p>
           </div>
         </div>
+
+        {/* Public Application Purpose & Data Transparency Section */}
+        <section
+          id="how-it-works"
+          className="mt-16 w-full text-left p-6 sm:p-8 rounded-xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark shadow-nexora-xs space-y-6"
+        >
+          <div className="space-y-2">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+              About NEXORA MAIL &amp; Google Data Transparency
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              NEXORA MAIL provides a clean productivity dashboard over your existing Gmail mailbox. Users can view Inbox, Starred, Important, Sent, Drafts, Archive, Spam, Trash, and custom labels, perform bulk actions, reply or forward threads, and upload or download attachments directly through Google&apos;s official API.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+            <div className="space-y-1.5">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Requested OAuth Permissions</h3>
+              <p>
+                NEXORA MAIL requests <code className="text-xs">openid</code>, <code className="text-xs">userinfo.email</code>, <code className="text-xs">userinfo.profile</code>, and <code className="text-xs">gmail.modify</code> solely so you can read, compose, send, label, archive, and trash messages inside the app.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Compliance &amp; Privacy Policy</h3>
+              <p>
+                We never store email bodies in our database, sell data, or train AI models on Gmail content. Review our{' '}
+                <Link to="/privacy" className="text-nexora-electric underline font-medium">
+                  Privacy Policy
+                </Link>{' '}
+                and{' '}
+                <Link to="/terms" className="text-nexora-electric underline font-medium">
+                  Terms of Service
+                </Link>{' '}
+                before signing in.
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-nexora-border dark:border-nexora-border-dark py-6 px-6 text-center text-xs text-slate-400 dark:text-slate-500 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
-        <p>&copy; {new Date().getFullYear()} Nexora Mail &bull; Gmail API Client</p>
+        <p>&copy; {new Date().getFullYear()} NEXORA MAIL &bull; Gmail API Client</p>
         <div className="flex items-center gap-4">
           <Link to="/privacy" className="hover:text-slate-700 dark:hover:text-slate-300 underline">
             Privacy Policy

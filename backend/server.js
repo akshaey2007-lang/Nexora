@@ -16,6 +16,7 @@ import authRoutes from './routes/authRoutes.js';
 import emailRoutes from './routes/emailRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import { handleGoogleCallback } from './controllers/authController.js';
+import { renderSpaWithPublicFallback } from './utils/publicHtml.js';
 
 // Resolve environment paths
 const __filename = fileURLToPath(import.meta.url);
@@ -159,14 +160,21 @@ app.get('/', (req, res, next) => {
 
 if (fs.existsSync(frontendDistPath)) {
   logger.info(`Serving static frontend assets from ${frontendDistPath}`);
-  app.use(express.static(frontendDistPath));
+
+  // Serve crawler-readable pre-rendered fallback HTML for public landing/compliance pages
+  // (React immediately mounts over #root in browsers)
+  app.get(['/', '/privacy', '/terms'], (req, res) => {
+    res.type('text/html').send(renderSpaWithPublicFallback(frontendDistPath, req.path));
+  });
+
+  app.use(express.static(frontendDistPath, { index: false }));
 
   // Client-side routing fallback for React Router SPA
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/auth')) {
       return next();
     }
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
+    res.type('text/html').send(renderSpaWithPublicFallback(frontendDistPath, req.path));
   });
 } else {
   app.get('/', (req, res) => {

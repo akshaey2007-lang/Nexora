@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
       <header className="h-16 border-b border-nexora-border dark:border-nexora-border-dark px-5 sm:px-10 lg:px-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5">
           <img src="/nexora-icon.png" alt="Nexora Mail" className="w-8 h-8 object-contain" />
-          <span className="font-semibold text-base tracking-tight">Nexora Mail</span>
+          <span className="font-semibold text-base tracking-tight">NEXORA MAIL</span>
         </Link>
         <Link
           to="/"

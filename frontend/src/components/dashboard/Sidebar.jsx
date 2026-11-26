@@ -71,7 +71,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             />
             {!isRail && (
               <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white truncate">
-                Nexora Mail
+                NEXORA MAIL
               </span>
             )}
           </Link>
