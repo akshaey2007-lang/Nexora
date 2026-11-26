@@ -7,7 +7,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 export default function LandingPage() {
   const { user, loginWithGoogle, logout, loading, isAuthenticated } = useAuth();
@@ -149,8 +149,16 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-nexora-border dark:border-nexora-border-dark py-6 px-6 text-center text-xs text-slate-400 dark:text-slate-500">
-        <p>&copy; {new Date().getFullYear()} Nexora Mail &bull; Built with React, Express, MongoDB, and the Google Gmail API.</p>
+      <footer className="border-t border-nexora-border dark:border-nexora-border-dark py-6 px-6 text-center text-xs text-slate-400 dark:text-slate-500 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
+        <p>&copy; {new Date().getFullYear()} Nexora Mail &bull; Gmail API Client</p>
+        <div className="flex items-center gap-4">
+          <Link to="/privacy" className="hover:text-slate-700 dark:hover:text-slate-300 underline">
+            Privacy Policy
+          </Link>
+          <Link to="/terms" className="hover:text-slate-700 dark:hover:text-slate-300 underline">
+            Terms of Service
+          </Link>
+        </div>
       </footer>
     </div>
   );

@@ -140,6 +140,15 @@ app.use('/api/settings', settingsRoutes);
 // 8. Production Static File Serving (Monorepo deployment on Render)
 const frontendDistPath = path.join(rootDir, 'frontend', 'dist');
 
+// Support dynamic Google Search Console HTML file verification via GOOGLE_VERIFICATION_FILE env var
+app.use((req, res, next) => {
+  const verifyFile = (process.env.GOOGLE_VERIFICATION_FILE || '').trim().replace(/^\//, '');
+  if (verifyFile && req.path === `/${verifyFile}`) {
+    return res.type('text/html').send(`google-site-verification: ${verifyFile}`);
+  }
+  return next();
+});
+
 // Handle Google OAuth callbacks sent to root '/' if GOOGLE_REDIRECT_URI omits '/auth/google/callback'
 app.get('/', (req, res, next) => {
   if (req.query.code || req.query.error) {

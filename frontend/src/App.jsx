@@ -10,6 +10,8 @@ import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthErrorPage from './pages/AuthErrorPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsPage from './pages/TermsPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Protected Route wrapper
@@ -46,8 +48,10 @@ export default function App() {
           <EmailProvider>
             <BrowserRouter>
               <Routes>
-                {/* Public Landing Page */}
+                {/* Public Pages */}
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
                 <Route path="/auth/error" element={<AuthErrorPage />} />
 
                 {/* Authenticated Dashboard Routes */}
