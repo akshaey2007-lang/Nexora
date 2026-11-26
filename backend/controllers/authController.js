@@ -6,7 +6,6 @@ import User from '../models/User.js';
 import UserSettings from '../models/UserSettings.js';
 import { encryptToken } from '../utils/encryption.js';
 import { logger } from '../utils/logger.js';
-import { DEMO_USER } from '../middleware/authMiddleware.js';
 
 /**
  * Resolves the safe frontend base URL for redirects after OAuth.
@@ -76,7 +75,6 @@ export async function getPublicConfig(req, res) {
 
   res.json({
     success: true,
-    demoModeAvailable: process.env.DEMO_MODE_FALLBACK === 'true',
     hasLiveCredentials
   });
 }
@@ -95,7 +93,7 @@ export async function getGoogleAuthUrl(req, res) {
       return res.status(400).json({
         success: false,
         code: 'MISSING_GOOGLE_CREDENTIALS',
-        message: 'Google Client ID or Client Secret has not been set yet. Please paste your real credentials into your .env file (or Render dashboard).'
+        message: 'Google OAuth credentials are not configured on the server.'
       });
     }
 
@@ -241,7 +239,6 @@ export async function handleGoogleCallback(req, res) {
     }
 
     req.session.oauthSessionUser = sessionUserObj;
-    req.session.isDemo = false;
     delete req.session.oauthState;
     delete req.session.returnOrigin;
 
@@ -262,25 +259,6 @@ export async function handleGoogleCallback(req, res) {
 
 export async function getCurrentUser(req, res) {
   try {
-    const demoModeAvailable = process.env.DEMO_MODE_FALLBACK === 'true';
-
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        user: DEMO_USER,
-        settings: {
-          theme: 'light',
-          sidebarCollapsed: false,
-          notificationsEnabled: true,
-          emailsPerPage: 25,
-          signature: '--\nSent with NEXORA MAIL'
-        },
-        isDemo: true,
-        demoModeAvailable,
-        hasLiveCredentials: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
-      });
-    }
-
     let settings = null;
     if (isDbConnected() && req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
       try {
@@ -300,10 +278,9 @@ export async function getCurrentUser(req, res) {
         sidebarCollapsed: false,
         notificationsEnabled: true,
         emailsPerPage: 25,
-        signature: '--\nSent with NEXORA MAIL'
+        signature: '',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       },
-      isDemo: false,
-      demoModeAvailable,
       hasLiveCredentials: true
     });
   } catch (error) {
@@ -328,17 +305,6 @@ export function logout(req, res) {
 
 export async function disconnectGoogle(req, res) {
   try {
-    if (req.isDemo) {
-      req.session.destroy(() => {
-        res.clearCookie('nexora.sid');
-        return res.json({
-          success: true,
-          message: 'Demo session disconnected'
-        });
-      });
-      return;
-    }
-
     if (isDbConnected() && req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
       await User.findByIdAndUpdate(req.user._id, {
         encryptedRefreshToken: null,
@@ -362,23 +328,4 @@ export async function disconnectGoogle(req, res) {
       message: 'Failed to disconnect account'
     });
   }
-}
-
-export function enableDemoMode(req, res) {
-  if (process.env.DEMO_MODE_FALLBACK !== 'true') {
-    return res.status(403).json({
-      success: false,
-      message: 'Demo / testing mode is disabled. Please sign in with your Google account.'
-    });
-  }
-
-  req.session.isDemo = true;
-  req.session.save(() => {
-    res.json({
-      success: true,
-      user: DEMO_USER,
-      isDemo: true,
-      message: 'Demo mode activated. Displaying simulated mailbox.'
-    });
-  });
 }

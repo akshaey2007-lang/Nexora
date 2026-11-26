@@ -67,11 +67,12 @@ export async function buildRawMimeMessage({
   }
 
   if (isHtml) {
-    mailOptions.html = body;
+    const safeHtml = body || '';
+    mailOptions.html = safeHtml;
     // Strip tags for plain text fallback
-    mailOptions.text = body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    mailOptions.text = safeHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   } else {
-    mailOptions.text = body;
+    mailOptions.text = body || '';
   }
 
   if (attachments && attachments.length > 0) {

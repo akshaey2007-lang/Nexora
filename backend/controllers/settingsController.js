@@ -8,19 +8,12 @@ const DEFAULT_SETTINGS = {
   sidebarCollapsed: false,
   notificationsEnabled: true,
   emailsPerPage: 25,
-  signature: '--\nSent with NEXORA MAIL',
+  signature: '',
   timezone: 'UTC'
 };
 
 export async function getSettings(req, res) {
   try {
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        settings: req.session?.tempSettings || DEFAULT_SETTINGS
-      });
-    }
-
     if (!isDbConnected() || !req.user?._id || !mongoose.Types.ObjectId.isValid(req.user._id)) {
       return res.json({
         success: true,
@@ -60,13 +53,13 @@ export async function updateSettings(req, res) {
       ...(timezone && { timezone })
     };
 
-    if (req.isDemo || !isDbConnected() || !req.user?._id || !mongoose.Types.ObjectId.isValid(req.user._id)) {
+    if (!isDbConnected() || !req.user?._id || !mongoose.Types.ObjectId.isValid(req.user._id)) {
       req.session.tempSettings = merged;
       return req.session.save(() => {
         res.json({
           success: true,
           settings: merged,
-          message: req.isDemo ? 'Settings updated (Demo session)' : 'Settings saved for current session.'
+          message: 'Settings saved for current session.'
         });
       });
     }

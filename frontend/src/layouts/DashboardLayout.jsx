@@ -1,32 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/dashboard/Sidebar';
 import TopNav from '../components/dashboard/TopNav';
 import ComposeModal from '../components/email/ComposeModal';
-import DemoBanner from '../components/common/DemoBanner';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { settings } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(Boolean(settings?.sidebarCollapsed));
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (settings?.sidebarCollapsed !== undefined) {
+      setSidebarCollapsed(Boolean(settings.sidebarCollapsed));
+    }
+  }, [settings?.sidebarCollapsed]);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-nexora-ivory dark:bg-nexora-dark-bg">
-      {/* Informative Demo Banner (Visible only in demo mode) */}
-      <DemoBanner />
+    <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-nexora-dark-bg">
+      {/* Left Navigation Sidebar (Desktop rail + Mobile Drawer) */}
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileDrawerOpen}
+        setMobileOpen={setMobileDrawerOpen}
+      />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Navigation Sidebar */}
-        <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <TopNav />
-          <main className="flex-1 overflow-hidden relative">
-            <Outlet />
-          </main>
-        </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <TopNav onOpenMobileMenu={() => setMobileDrawerOpen(true)} />
+        <main className="flex-1 overflow-hidden relative">
+          <Outlet />
+        </main>
       </div>
 
-      {/* Floating Compose Modal */}
+      {/* Compose Drawer / Modal */}
       <ComposeModal />
     </div>
   );

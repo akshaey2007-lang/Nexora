@@ -4,22 +4,17 @@ import {
   Zap,
   Lock,
   Mail,
-  ArrowRight,
-  CheckCircle2,
-  Sparkles,
-  Server,
-  Database,
-  ExternalLink
+  ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function LandingPage() {
-  const { user, loginWithGoogle, activateDemoMode, logout, loading, isAuthenticated, demoModeAvailable } = useAuth();
+  const { user, loginWithGoogle, logout, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // If Google OAuth redirected to '/' with ?code=... or ?error=... (e.g. in local dev proxy), forward to backend callback
+  // If Google OAuth redirects to '/' with ?code= or ?error= (in local dev), forward to backend callback
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('code') || params.get('error')) {
@@ -27,171 +22,133 @@ export default function LandingPage() {
     }
   }, [location.search]);
 
-  const handleDemoClick = async () => {
-    const ok = await activateDemoMode();
-    if (ok) {
-      navigate('/dashboard');
-    }
-  };
-
-  const handleDashboardClick = () => {
-    navigate('/dashboard');
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-nexora-ivory via-white to-nexora-ivory dark:from-nexora-dark-bg dark:via-nexora-dark-surface dark:to-nexora-dark-bg text-nexora-navy dark:text-gray-100 flex flex-col">
+    <div className="min-h-screen bg-white dark:bg-nexora-dark-bg text-slate-900 dark:text-slate-100 flex flex-col">
       {/* Top Navigation */}
-      <header className="h-20 border-b border-nexora-border/80 dark:border-nexora-border-dark px-6 lg:px-16 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-nexora-navy to-nexora-electric flex items-center justify-center shadow-nexora-sm text-white font-extrabold text-xl">
+      <header className="h-16 border-b border-nexora-border dark:border-nexora-border-dark px-5 sm:px-10 lg:px-16 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-nexora-electric flex items-center justify-center text-white font-bold text-sm shadow-nexora-xs">
             N
           </div>
-          <span className="font-extrabold text-xl tracking-tight">
-            NEXORA<span className="text-nexora-electric">.</span>MAIL
+          <span className="font-semibold text-base tracking-tight text-slate-900 dark:text-white">
+            Nexora Mail
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {isAuthenticated ? (
-            <div className="flex items-center gap-3">
-              <span className="hidden md:inline text-xs font-medium text-nexora-muted">
-                Signed in as <strong className="text-nexora-navy dark:text-white">{user?.email}</strong>
+            <>
+              <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400">
+                {user?.email}
               </span>
               <button
-                onClick={handleDashboardClick}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-nexora-electric text-white font-semibold text-sm hover:bg-nexora-electric-hover transition-all shadow-nexora-md"
+                onClick={() => navigate('/dashboard')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-nexora-electric hover:bg-nexora-electric-hover text-white font-medium text-sm transition-colors shadow-nexora-xs"
               >
                 <span>Open Inbox</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
                 onClick={logout}
-                className="px-3.5 py-2.5 rounded-xl border border-nexora-border dark:border-nexora-border-dark text-xs font-semibold text-nexora-muted hover:text-nexora-navy dark:hover:text-white transition-colors"
+                className="px-3 py-2 rounded-lg border border-nexora-border dark:border-nexora-border-dark text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-nexora-dark-card transition-colors"
               >
                 Sign Out
               </button>
-            </div>
-          ) : (
-            <>
-              {demoModeAvailable && (
-                <button
-                  onClick={handleDemoClick}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-nexora-border dark:border-nexora-border-dark font-semibold text-sm hover:bg-nexora-ivory dark:hover:bg-nexora-dark-card transition-colors"
-                >
-                  <Sparkles className="w-4 h-4 text-nexora-electric" />
-                  <span>Live Interactive Demo</span>
-                </button>
-              )}
-
-              <button
-                onClick={loginWithGoogle}
-                disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-nexora-navy dark:bg-white text-white dark:text-nexora-navy font-semibold text-sm hover:opacity-90 transition-all shadow-nexora-sm"
-              >
-                <span>Sign In with Google</span>
-              </button>
             </>
+          ) : (
+            <button
+              onClick={loginWithGoogle}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              <span>Sign in with Google</span>
+            </button>
           )}
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="flex-1 max-w-6xl mx-auto px-6 pt-16 pb-20 flex flex-col items-center text-center">
-        {/* Security Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-nexora-electric/10 text-nexora-electric font-semibold text-xs mb-8 border border-nexora-electric/20">
+      <main className="flex-1 max-w-5xl mx-auto px-5 sm:px-8 pt-20 pb-24 flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/15 text-nexora-electric dark:text-indigo-300 font-medium text-xs mb-6 border border-indigo-200/70 dark:border-indigo-500/30">
           <Shield className="w-3.5 h-3.5" />
-          <span>Official Gmail API &bull; AES-256 Encrypted &bull; Free-Tier Deployable</span>
+          <span>Google OAuth 2.0 &bull; Gmail API v1</span>
         </div>
 
-        {/* Headline */}
-        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl leading-[1.15] text-nexora-navy dark:text-white">
-          The Executive Email Client Crafted for{' '}
-          <span className="bg-gradient-to-r from-nexora-electric to-nexora-teal bg-clip-text text-transparent">
-            Maximum Speed & Security
-          </span>
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl leading-[1.12] text-slate-900 dark:text-white">
+          A focused workspace for your Gmail inbox.
         </h1>
 
-        <p className="mt-6 text-lg sm:text-xl text-nexora-muted max-w-2xl leading-relaxed">
-          Manage your live Gmail account with a distraction-free corporate dashboard. Server-side OAuth 2.0, zero local attachment storage, and real-time synchronization.
+        <p className="mt-5 text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+          Read, compose, triage, and search your live Gmail messages inside a fast, distraction-free interface backed by server-side OAuth 2.0 and encrypted token storage.
         </p>
 
-        {/* CTA Buttons */}
-        <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+        {/* Primary CTA */}
+        <div className="mt-9">
           {isAuthenticated ? (
             <button
-              onClick={handleDashboardClick}
-              className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-nexora-electric text-white font-bold text-base hover:bg-nexora-electric-hover hover:shadow-nexora-glow transition-all"
+              onClick={() => navigate('/dashboard')}
+              className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-nexora-electric hover:bg-nexora-electric-hover text-white font-semibold text-sm sm:text-base transition-colors shadow-nexora-sm"
             >
-              <Mail className="w-5 h-5" />
-              <span>Go to My Inbox ({user?.email})</span>
+              <Mail className="w-4 h-4" />
+              <span>Go to Inbox ({user?.email})</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
             <button
               onClick={loginWithGoogle}
               disabled={loading}
-              className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-nexora-electric text-white font-bold text-base hover:bg-nexora-electric-hover hover:shadow-nexora-glow transition-all"
+              className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-nexora-electric hover:bg-nexora-electric-hover text-white font-semibold text-sm sm:text-base disabled:opacity-50 transition-colors shadow-nexora-sm"
             >
-              <Mail className="w-5 h-5" />
-              <span>Connect Your Gmail Account</span>
+              <Mail className="w-4 h-4" />
+              <span>Continue with Google</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           )}
-
-          {demoModeAvailable && !isAuthenticated && (
-            <button
-              onClick={handleDemoClick}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark text-nexora-navy dark:text-white font-bold text-base hover:bg-nexora-ivory dark:hover:bg-nexora-dark-card transition-all shadow-nexora-sm"
-            >
-              <Sparkles className="w-5 h-5 text-amber-500" />
-              <span>Explore Interactive Demo</span>
-            </button>
-          )}
         </div>
 
-        {/* Key Architectural Highlights */}
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 w-full text-left">
-          <div className="p-6 rounded-2xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark shadow-nexora-sm hover:shadow-nexora-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-nexora-electric/10 text-nexora-electric flex items-center justify-center mb-4">
-              <Zap className="w-6 h-6" />
+        {/* Core Architecture Highlights */}
+        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-5 w-full text-left">
+          <div className="p-5 rounded-xl bg-nexora-ivory dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark">
+            <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-nexora-electric dark:text-indigo-400 flex items-center justify-center mb-3.5">
+              <Zap className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-nexora-navy dark:text-white mb-2">
-              Official Gmail API
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1.5">
+              Direct Gmail API Sync
             </h3>
-            <p className="text-sm text-nexora-muted leading-relaxed">
-              Integrates directly with Google's Gmail API via server-side OAuth 2.0. Send, star, archive, trash, search, and manage real drafts seamlessly.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Every folder, draft, label, search query, and bulk action syncs directly with your real Gmail account without local mailbox duplication.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark shadow-nexora-sm hover:shadow-nexora-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-nexora-teal/10 text-nexora-teal flex items-center justify-center mb-4">
-              <Lock className="w-6 h-6" />
+          <div className="p-5 rounded-xl bg-nexora-ivory dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3.5">
+              <Lock className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-nexora-navy dark:text-white mb-2">
-              AES-256-GCM Token Encryption
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1.5">
+              AES-256-GCM Token Protection
             </h3>
-            <p className="text-sm text-nexora-muted leading-relaxed">
-              Your Google refresh tokens are encrypted at rest with AES-256-GCM. Session cookies are HTTP-only and attachments are never kept on server disk.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              OAuth credentials are encrypted at rest and managed exclusively server-side through HTTP-only session cookies.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark shadow-nexora-sm hover:shadow-nexora-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center mb-4">
-              <Server className="w-6 h-6" />
+          <div className="p-5 rounded-xl bg-nexora-ivory dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark">
+            <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-nexora-dark-card text-slate-700 dark:text-slate-300 flex items-center justify-center mb-3.5">
+              <Shield className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-nexora-navy dark:text-white mb-2">
-              100% Free-Tier Architecture
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1.5">
+              Sanitized Reading & Streaming
             </h3>
-            <p className="text-sm text-nexora-muted leading-relaxed">
-              Engineered for seamless zero-cost hosting on Render Web Services, GitHub, and MongoDB Atlas Free Cluster.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              HTML message bodies are sanitized via DOMPurify before rendering, and attachments stream through memory with zero disk storage.
             </p>
           </div>
         </div>
-      </section>
+      </main>
 
       {/* Footer */}
-      <footer className="border-t border-nexora-border dark:border-nexora-border-dark py-8 px-6 text-center text-xs text-nexora-muted">
-        <p>&copy; {new Date().getFullYear()} NEXORA MAIL &bull; Enterprise Gmail Management Platform &bull; Built with React, Express, and MongoDB.</p>
+      <footer className="border-t border-nexora-border dark:border-nexora-border-dark py-6 px-6 text-center text-xs text-slate-400 dark:text-slate-500">
+        <p>&copy; {new Date().getFullYear()} Nexora Mail &bull; Built with React, Express, MongoDB, and the Google Gmail API.</p>
       </footer>
     </div>
   );

@@ -5,7 +5,10 @@ import {
   getSent,
   getStarred,
   getImportant,
+  getArchive,
+  getByLabel,
   getDrafts,
+  getDraftById,
   getSpam,
   getTrash,
   getEmailById,
@@ -19,9 +22,11 @@ import {
   archiveEmail,
   trashEmail,
   restoreEmail,
+  bulkAction,
   searchEmails,
   getAttachment,
-  getUnreadCounts
+  getUnreadCounts,
+  getMailboxProfile
 } from '../controllers/emailController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { apiLimiter } from '../middleware/rateLimiter.js';
@@ -46,13 +51,20 @@ router.get('/inbox', getInbox);
 router.get('/sent', getSent);
 router.get('/starred', getStarred);
 router.get('/important', getImportant);
+router.get('/archive', getArchive);
+router.get('/label/:labelId', getByLabel);
 router.get('/drafts', getDrafts);
+router.get('/draft/:id', getDraftById);
 router.get('/spam', getSpam);
 router.get('/trash', getTrash);
 router.get('/counts', getUnreadCounts);
+router.get('/profile', getMailboxProfile);
 
 // Search
 router.get('/search', searchEmails);
+
+// Bulk operations
+router.post('/bulk', bulkAction);
 
 // Single Email Operations
 router.get('/:id', getEmailById);

@@ -1,17 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
+import emailService from '../services/emailService';
 import { useToast } from './ToastContext';
+import { useTheme } from './ThemeContext';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [mailboxProfile, setMailboxProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isDemo, setIsDemo] = useState(false);
-  const [demoModeAvailable, setDemoModeAvailable] = useState(false);
   const [hasLiveCredentials, setHasLiveCredentials] = useState(true);
   const { error, success } = useToast();
+  const { setTheme } = useTheme();
 
   const fetchCurrentUser = useCallback(async () => {
     try {
@@ -22,7 +24,6 @@ export function AuthProvider({ children }) {
       ]);
 
       if (configRes.status === 'fulfilled' && configRes.value?.success) {
-        setDemoModeAvailable(Boolean(configRes.value.demoModeAvailable));
         setHasLiveCredentials(Boolean(configRes.value.hasLiveCredentials));
       }
 
@@ -30,24 +31,35 @@ export function AuthProvider({ children }) {
         const res = userRes.value;
         setUser(res.user);
         setSettings(res.settings);
-        setIsDemo(Boolean(res.isDemo));
-        if (res.demoModeAvailable !== undefined) {
-          setDemoModeAvailable(Boolean(res.demoModeAvailable));
+        if (res.settings?.theme && !localStorage.getItem('nexora_theme_manual')) {
+          setTheme(res.settings.theme);
         }
         if (res.hasLiveCredentials !== undefined) {
           setHasLiveCredentials(Boolean(res.hasLiveCredentials));
         }
+
+        // Load real Gmail profile totals cleanly
+        emailService
+          .getMailboxProfile()
+          .then((profRes) => {
+            if (profRes?.success && profRes.profile) {
+              setMailboxProfile(profRes.profile);
+            }
+          })
+          .catch(() => {});
       } else {
         setUser(null);
-        setIsDemo(false);
+        setSettings(null);
+        setMailboxProfile(null);
       }
-    } catch (err) {
+    } catch {
       setUser(null);
-      setIsDemo(false);
+      setSettings(null);
+      setMailboxProfile(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setTheme]);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -59,39 +71,24 @@ export function AuthProvider({ children }) {
       if (res && res.url) {
         window.location.href = res.url;
       } else {
-        error(res?.message || 'Could not initiate Google Sign-In. Check your .env credentials.');
+        error(res?.message || 'Could not initiate Google Sign-In.');
       }
     } catch (err) {
-      error(err.message || 'Failed to start Google sign-in. Please update GOOGLE_CLIENT_ID in your .env file.');
+      error(err.message || 'Failed to start Google sign-in.');
     }
-  };
-
-  const activateDemoMode = async () => {
-    try {
-      setLoading(true);
-      const res = await authService.enableDemoMode();
-      if (res && res.success) {
-        setUser(res.user);
-        setIsDemo(true);
-        success('Demo mode enabled. Enjoy exploring NEXORA MAIL!');
-        return true;
-      }
-    } catch (err) {
-      error('Failed to initialize demo environment.');
-    } finally {
-      setLoading(false);
-    }
-    return false;
   };
 
   const logout = async () => {
     try {
       await authService.logout();
       setUser(null);
-      setIsDemo(false);
-      success('Logged out successfully.');
-    } catch (err) {
+      setSettings(null);
+      setMailboxProfile(null);
+      success('Signed out.');
+    } catch {
       setUser(null);
+      setSettings(null);
+      setMailboxProfile(null);
     }
   };
 
@@ -99,7 +96,8 @@ export function AuthProvider({ children }) {
     try {
       await authService.disconnect();
       setUser(null);
-      setIsDemo(false);
+      setSettings(null);
+      setMailboxProfile(null);
       success('Google account disconnected.');
     } catch (err) {
       error(err.message || 'Failed to disconnect account.');
@@ -113,12 +111,10 @@ export function AuthProvider({ children }) {
         setUser,
         settings,
         setSettings,
+        mailboxProfile,
         loading,
-        isDemo,
-        demoModeAvailable,
         hasLiveCredentials,
         loginWithGoogle,
-        activateDemoMode,
         logout,
         disconnect,
         refreshUser: fetchCurrentUser,

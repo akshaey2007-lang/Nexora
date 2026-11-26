@@ -5,8 +5,7 @@ import {
   getCurrentUser,
   getPublicConfig,
   logout,
-  disconnectGoogle,
-  enableDemoMode
+  disconnectGoogle
 } from '../controllers/authController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
@@ -19,9 +18,6 @@ router.get('/config', getPublicConfig);
 // OAuth initiate & callback
 router.get('/google', authLimiter, getGoogleAuthUrl);
 router.get('/google/callback', handleGoogleCallback);
-
-// Demo mode activator
-router.post('/demo', enableDemoMode);
 
 // Authenticated user profile & state
 router.get('/me', requireAuth, getCurrentUser);

@@ -7,7 +7,7 @@ export async function connectDB() {
   const uri = process.env.MONGODB_URI;
 
   if (!uri) {
-    logger.warn('MONGODB_URI is not defined. Application will start in standalone/demo memory mode.');
+    logger.warn('MONGODB_URI is not defined. Application will use session memory storage.');
     return false;
   }
 
@@ -34,7 +34,7 @@ export async function connectDB() {
   } catch (error) {
     isConnected = false;
     logger.warn(`Could not connect to MongoDB: ${error.message}`);
-    logger.warn('The application will proceed with in-memory session/demo store until MongoDB is available.');
+    logger.warn('The application will proceed with in-memory session storage until MongoDB is available.');
     return false;
   }
 }

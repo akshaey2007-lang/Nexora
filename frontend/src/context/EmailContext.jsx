@@ -1,23 +1,38 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import emailService from '../services/emailService';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 
 const EmailContext = createContext(null);
 
+const INITIAL_COUNTS = {
+  inbox: 0,
+  starred: 0,
+  sent: 0,
+  drafts: 0,
+  spam: 0,
+  trash: 0,
+  important: 0
+};
+
 export function EmailProvider({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, settings } = useAuth();
   const { success, error } = useToast();
 
   const [currentFolder, setCurrentFolder] = useState('inbox');
   const [emails, setEmails] = useState([]);
+  const [customLabels, setCustomLabels] = useState([]);
   const [selectedEmail, setSelectedEmail] = useState(null);
   const [selectedEmailId, setSelectedEmailId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [counts, setCounts] = useState({ inbox: 0, starred: 0, sent: 0, drafts: 0, spam: 0, trash: 0, important: 0 });
+  const [counts, setCounts] = useState(INITIAL_COUNTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [nextPageToken, setNextPageToken] = useState(null);
+
+  const prevInboxUnreadRef = useRef(null);
 
   // Compose State
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -33,77 +48,182 @@ export function EmailProvider({ children }) {
     draftId: null
   });
 
-  // Fetch unread / total counts
+  const emailsPerPage = settings?.emailsPerPage || 25;
+
+  // Fetch genuine unread/total counts and user labels
   const fetchCounts = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       const res = await emailService.getUnreadCounts();
       if (res && res.counts) {
+        // Trigger genuine browser notification if unread count increased and user enabled notifications
+        if (
+          prevInboxUnreadRef.current !== null &&
+          res.counts.inbox > prevInboxUnreadRef.current &&
+          settings?.notificationsEnabled &&
+          typeof Notification !== 'undefined' &&
+          Notification.permission === 'granted'
+        ) {
+          const diff = res.counts.inbox - prevInboxUnreadRef.current;
+          new Notification('Nexora Mail', {
+            body: `You have ${diff} new unread ${diff === 1 ? 'message' : 'messages'} in your inbox.`
+          });
+        }
+        prevInboxUnreadRef.current = res.counts.inbox;
         setCounts(res.counts);
       }
-    } catch (err) {
-      // Quiet fail for badge counts
+      if (res && Array.isArray(res.customLabels)) {
+        setCustomLabels(res.customLabels);
+      }
+    } catch {
+      // Non-blocking badge refresh
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, settings?.notificationsEnabled]);
 
-  // Load emails for folder or search
-  const loadEmails = useCallback(async (folder = currentFolder, query = searchQuery) => {
-    if (!isAuthenticated) return;
-    setLoadingEmails(true);
+  // Load emails for active folder or search query
+  const loadEmails = useCallback(
+    async (folder = currentFolder, query = searchQuery) => {
+      if (!isAuthenticated) return;
+      setLoadingEmails(true);
+      setSelectedIds([]);
+      try {
+        let res;
+        if (query && query.trim()) {
+          res = await emailService.searchEmails(query.trim(), null, emailsPerPage);
+        } else {
+          res = await emailService.getEmailsByFolder(folder, null, emailsPerPage);
+        }
+
+        const list = res?.data?.messages || res?.data?.drafts || [];
+        setEmails(list);
+        setNextPageToken(res?.data?.nextPageToken || null);
+      } catch (err) {
+        error(err.message || 'Failed to retrieve emails.');
+        setEmails([]);
+        setNextPageToken(null);
+      } finally {
+        setLoadingEmails(false);
+      }
+    },
+    [isAuthenticated, currentFolder, searchQuery, emailsPerPage, error]
+  );
+
+  // Load next page via Gmail pageToken
+  const loadMoreEmails = useCallback(async () => {
+    if (!isAuthenticated || !nextPageToken || loadingMore) return;
+    setLoadingMore(true);
     try {
       let res;
-      if (query && query.trim()) {
-        res = await emailService.searchEmails(query.trim());
+      if (searchQuery && searchQuery.trim()) {
+        res = await emailService.searchEmails(searchQuery.trim(), nextPageToken, emailsPerPage);
       } else {
-        res = await emailService.getEmailsByFolder(folder);
+        res = await emailService.getEmailsByFolder(currentFolder, nextPageToken, emailsPerPage);
       }
-
       const list = res?.data?.messages || res?.data?.drafts || [];
-      setEmails(list);
+      setEmails((prev) => {
+        const seen = new Set(prev.map((m) => m.id));
+        const unique = list.filter((m) => !seen.has(m.id));
+        return [...prev, ...unique];
+      });
       setNextPageToken(res?.data?.nextPageToken || null);
     } catch (err) {
-      error(err.message || 'Failed to retrieve emails.');
-      setEmails([]);
+      error(err.message || 'Failed to load more messages.');
     } finally {
-      setLoadingEmails(false);
+      setLoadingMore(false);
     }
-  }, [isAuthenticated, currentFolder, searchQuery, error]);
+  }, [isAuthenticated, nextPageToken, loadingMore, searchQuery, currentFolder, emailsPerPage, error]);
 
-  // Load specific email details
-  const selectEmail = useCallback(async (id) => {
-    if (!id) {
-      setSelectedEmail(null);
-      setSelectedEmailId(null);
-      return;
-    }
+  // Open compose modal (also handles reply/forward/draft editing)
+  const openCompose = useCallback(
+    (initial = {}) => {
+      const savedSig = settings?.signature?.trim();
+      const defaultBody =
+        initial.body !== undefined
+          ? initial.body
+          : savedSig
+          ? `<br><br><div style="color:#64748b;">${savedSig.replace(/\n/g, '<br>')}</div>`
+          : '';
 
-    setSelectedEmailId(id);
-    setLoadingDetail(true);
-    try {
-      const res = await emailService.getEmailById(id);
-      if (res && res.email) {
-        setSelectedEmail(res.email);
+      setComposeData({
+        to: initial.to || '',
+        cc: initial.cc || '',
+        bcc: initial.bcc || '',
+        subject: initial.subject || '',
+        body: defaultBody,
+        inReplyTo: initial.inReplyTo || '',
+        references: initial.references || '',
+        threadId: initial.threadId || '',
+        draftId: initial.draftId || null
+      });
+      setIsComposeOpen(true);
+    },
+    [settings?.signature]
+  );
 
-        // Optimistically mark as read in local list if unread
-        setEmails((prev) =>
-          prev.map((item) =>
-            item.id === id ? { ...item, isUnread: false, labels: item.labels?.filter((l) => l !== 'UNREAD') } : item
-          )
-        );
+  const closeCompose = useCallback(() => {
+    setIsComposeOpen(false);
+  }, []);
 
-        // Notify server
-        if (res.email.isUnread) {
-          emailService.markRead(id, true).catch(() => {});
-          fetchCounts();
-        }
+  // Load specific email details or open draft for editing
+  const selectEmail = useCallback(
+    async (id, item = null) => {
+      if (!id) {
+        setSelectedEmail(null);
+        setSelectedEmailId(null);
+        return;
       }
-    } catch (err) {
-      error(err.message || 'Could not load email body.');
-      setSelectedEmail(null);
-    } finally {
-      setLoadingDetail(false);
-    }
-  }, [error, fetchCounts]);
+
+      if (currentFolder === 'drafts' || item?.isDraft) {
+        try {
+          const res = await emailService.getDraftById(id);
+          if (res?.draft) {
+            const d = res.draft;
+            openCompose({
+              to: d.to || '',
+              cc: d.cc || '',
+              bcc: d.bcc || '',
+              subject: d.subject === '(No Subject)' ? '' : d.subject || '',
+              body: d.bodyHtml || d.bodyText || '',
+              threadId: d.threadId || '',
+              draftId: d.draftId || id
+            });
+          }
+        } catch (err) {
+          error(err.message || 'Could not open draft.');
+        }
+        return;
+      }
+
+      setSelectedEmailId(id);
+      setLoadingDetail(true);
+      try {
+        const res = await emailService.getEmailById(id);
+        if (res && res.email) {
+          const wasUnread = res.email.isUnread;
+          setSelectedEmail({ ...res.email, isUnread: false });
+
+          setEmails((prev) =>
+            prev.map((m) =>
+              m.id === id ? { ...m, isUnread: false, labels: m.labels?.filter((l) => l !== 'UNREAD') } : m
+            )
+          );
+
+          if (wasUnread) {
+            emailService
+              .markRead(id, true)
+              .then(() => fetchCounts())
+              .catch(() => {});
+          }
+        }
+      } catch (err) {
+        error(err.message || 'Could not load email content.');
+        setSelectedEmail(null);
+      } finally {
+        setLoadingDetail(false);
+      }
+    },
+    [currentFolder, openCompose, error, fetchCounts]
+  );
 
   // Initial & Dependency Load (and clear state on logout)
   useEffect(() => {
@@ -112,22 +232,23 @@ export function EmailProvider({ children }) {
       fetchCounts();
     } else {
       setEmails([]);
+      setCustomLabels([]);
       setSelectedEmail(null);
       setSelectedEmailId(null);
-      setCounts({ inbox: 0, starred: 0, sent: 0, drafts: 0, spam: 0, trash: 0, important: 0 });
+      setSelectedIds([]);
+      setCounts(INITIAL_COUNTS);
+      setNextPageToken(null);
+      prevInboxUnreadRef.current = null;
     }
   }, [isAuthenticated, currentFolder, searchQuery, loadEmails, fetchCounts]);
 
-  // Email Actions
+  // Single Email Actions
   const toggleStar = async (id, e) => {
     if (e) e.stopPropagation();
-    const target = emails.find((m) => m.id === id);
+    const target = emails.find((m) => m.id === id) || (selectedEmail?.id === id ? selectedEmail : null);
     const newStarred = target ? !target.isStarred : true;
 
-    // Optimistic UI update
-    setEmails((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, isStarred: newStarred } : m))
-    );
+    setEmails((prev) => prev.map((m) => (m.id === id ? { ...m, isStarred: newStarred } : m)));
     if (selectedEmail && selectedEmail.id === id) {
       setSelectedEmail((prev) => ({ ...prev, isStarred: newStarred }));
     }
@@ -135,20 +256,15 @@ export function EmailProvider({ children }) {
     try {
       await emailService.toggleStar(id, newStarred);
       fetchCounts();
-    } catch (err) {
-      error('Failed to update star status');
-      // Revert on error
-      setEmails((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, isStarred: !newStarred } : m))
-      );
+    } catch {
+      error('Failed to update star status.');
+      setEmails((prev) => prev.map((m) => (m.id === id ? { ...m, isStarred: !newStarred } : m)));
     }
   };
 
   const markRead = async (id, isRead = true, e) => {
     if (e) e.stopPropagation();
-    setEmails((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, isUnread: !isRead } : m))
-    );
+    setEmails((prev) => prev.map((m) => (m.id === id ? { ...m, isUnread: !isRead } : m)));
     if (selectedEmail && selectedEmail.id === id) {
       setSelectedEmail((prev) => ({ ...prev, isUnread: !isRead }));
     }
@@ -156,9 +272,9 @@ export function EmailProvider({ children }) {
     try {
       await emailService.markRead(id, isRead);
       fetchCounts();
-      success(isRead ? 'Marked as read' : 'Marked as unread');
-    } catch (err) {
-      error('Failed to mark read status');
+      success(isRead ? 'Marked as read.' : 'Marked as unread.');
+    } catch {
+      error('Failed to update read status.');
     }
   };
 
@@ -172,10 +288,10 @@ export function EmailProvider({ children }) {
 
     try {
       await emailService.archiveEmail(id);
-      success('Email archived');
+      success('Conversation archived.');
       fetchCounts();
-    } catch (err) {
-      error('Failed to archive email');
+    } catch {
+      error('Failed to archive email.');
       loadEmails();
     }
   };
@@ -189,11 +305,16 @@ export function EmailProvider({ children }) {
     }
 
     try {
-      await emailService.trashEmail(id);
-      success('Email moved to Trash');
+      if (currentFolder === 'drafts') {
+        await emailService.deleteDraft(id);
+        success('Draft discarded.');
+      } else {
+        await emailService.trashEmail(id);
+        success('Moved to Trash.');
+      }
       fetchCounts();
-    } catch (err) {
-      error('Failed to trash email');
+    } catch {
+      error(currentFolder === 'drafts' ? 'Failed to delete draft.' : 'Failed to move message to Trash.');
       loadEmails();
     }
   };
@@ -208,42 +329,115 @@ export function EmailProvider({ children }) {
 
     try {
       await emailService.restoreEmail(id);
-      success('Email restored from Trash');
+      success('Message restored to Inbox.');
       fetchCounts();
-    } catch (err) {
-      error('Failed to restore email');
+    } catch {
+      error('Failed to restore email.');
+      loadEmails();
     }
   };
 
-  // Compose Modal Handlers
-  const openCompose = (initial = {}) => {
-    setComposeData({
-      to: initial.to || '',
-      cc: initial.cc || '',
-      bcc: initial.bcc || '',
-      subject: initial.subject || '',
-      body: initial.body || '',
-      inReplyTo: initial.inReplyTo || '',
-      references: initial.references || '',
-      threadId: initial.threadId || '',
-      draftId: initial.draftId || null
-    });
-    setIsComposeOpen(true);
+  // Bulk Selection & Actions
+  const toggleSelectId = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   };
 
-  const closeCompose = () => {
-    setIsComposeOpen(false);
+  const toggleSelectAll = () => {
+    if (selectedIds.length === emails.length && emails.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(emails.map((m) => m.id));
+    }
   };
 
+  const clearSelection = () => setSelectedIds([]);
+
+  const performBulkAction = async (action) => {
+    if (selectedIds.length === 0) return;
+    const idsToProcess = [...selectedIds];
+
+    // Optimistic UI updates
+    if (action === 'archive' || action === 'trash' || action === 'restore') {
+      setEmails((prev) => prev.filter((m) => !idsToProcess.includes(m.id)));
+      if (idsToProcess.includes(selectedEmailId)) {
+        setSelectedEmail(null);
+        setSelectedEmailId(null);
+      }
+    } else if (action === 'markRead') {
+      setEmails((prev) => prev.map((m) => (idsToProcess.includes(m.id) ? { ...m, isUnread: false } : m)));
+    } else if (action === 'markUnread') {
+      setEmails((prev) => prev.map((m) => (idsToProcess.includes(m.id) ? { ...m, isUnread: true } : m)));
+    } else if (action === 'star') {
+      setEmails((prev) => prev.map((m) => (idsToProcess.includes(m.id) ? { ...m, isStarred: true } : m)));
+    }
+
+    setSelectedIds([]);
+
+    try {
+      if (currentFolder === 'drafts' && action === 'trash') {
+        await Promise.all(idsToProcess.map((id) => emailService.deleteDraft(id)));
+        success(`${idsToProcess.length} draft(s) deleted.`);
+      } else {
+        await emailService.bulkAction(idsToProcess, action);
+        const labels = {
+          markRead: 'Marked as read.',
+          markUnread: 'Marked as unread.',
+          star: 'Starred selected messages.',
+          archive: `Archived ${idsToProcess.length} message(s).`,
+          trash: `Moved ${idsToProcess.length} message(s) to Trash.`,
+          restore: `Restored ${idsToProcess.length} message(s).`
+        };
+        success(labels[action] || 'Bulk action completed.');
+      }
+      fetchCounts();
+    } catch (err) {
+      error(err.message || 'Bulk action failed.');
+      loadEmails();
+    }
+  };
+
+  // Reply, Reply All & Forward
   const handleReply = (email) => {
     if (!email) return;
     openCompose({
       to: email.fromEmail || email.from,
       subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject || ''}`,
       inReplyTo: email.messageId,
-      references: email.messageId,
+      references: email.references ? `${email.references} ${email.messageId}` : email.messageId,
       threadId: email.threadId,
-      body: `<br><br><div style="border-left: 2px solid #536DFE; padding-left: 12px; margin-left: 4px; color: #6B7280;">On ${email.date}, ${email.fromName || email.from} wrote:<br>${email.bodyHtml || email.bodyText || ''}</div>`
+      body: `<br><br><blockquote style="border-left:2px solid #cbd5e1;padding-left:12px;margin:0;color:#64748b;">On ${email.date}, ${email.fromName || email.from} wrote:<br>${email.bodyHtml || email.bodyText || ''}</blockquote>`
+    });
+  };
+
+  const handleReplyAll = (email) => {
+    if (!email) return;
+    const myEmail = (user?.email || '').toLowerCase();
+    const parseAddresses = (str) =>
+      (str || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+    const extractEmail = (addr) => {
+      const m = addr.match(/<([^>]+)>/);
+      return (m ? m[1] : addr).trim().toLowerCase();
+    };
+
+    const replyTo = email.fromEmail || email.from || '';
+    const otherRecipients = [...parseAddresses(email.to), ...parseAddresses(email.cc)].filter((addr) => {
+      const clean = extractEmail(addr);
+      return clean && clean !== myEmail && clean !== extractEmail(replyTo);
+    });
+
+    openCompose({
+      to: replyTo,
+      cc: otherRecipients.join(', '),
+      subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject || ''}`,
+      inReplyTo: email.messageId,
+      references: email.references ? `${email.references} ${email.messageId}` : email.messageId,
+      threadId: email.threadId,
+      body: `<br><br><blockquote style="border-left:2px solid #cbd5e1;padding-left:12px;margin:0;color:#64748b;">On ${email.date}, ${email.fromName || email.from} wrote:<br>${email.bodyHtml || email.bodyText || ''}</blockquote>`
     });
   };
 
@@ -252,7 +446,7 @@ export function EmailProvider({ children }) {
     openCompose({
       to: '',
       subject: email.subject?.startsWith('Fwd:') ? email.subject : `Fwd: ${email.subject || ''}`,
-      body: `<br><br><div style="border-left: 2px solid #8791A5; padding-left: 12px; margin-left: 4px; color: #6B7280;">---------- Forwarded message ---------<br>From: ${email.from}<br>Date: ${email.date}<br>Subject: ${email.subject}<br>To: ${email.to}<br><br>${email.bodyHtml || email.bodyText || ''}</div>`
+      body: `<br><br><blockquote style="border-left:2px solid #cbd5e1;padding-left:12px;margin:0;color:#64748b;">---------- Forwarded message ---------<br>From: ${email.from}<br>Date: ${email.date}<br>Subject: ${email.subject}<br>To: ${email.to}<br><br>${email.bodyHtml || email.bodyText || ''}</blockquote>`
     });
   };
 
@@ -262,11 +456,20 @@ export function EmailProvider({ children }) {
         currentFolder,
         setCurrentFolder,
         emails,
+        customLabels,
         selectedEmail,
         selectedEmailId,
         selectEmail,
+        selectedIds,
+        toggleSelectId,
+        toggleSelectAll,
+        clearSelection,
+        performBulkAction,
         loadingEmails,
+        loadingMore,
         loadingDetail,
+        nextPageToken,
+        loadMoreEmails,
         counts,
         searchQuery,
         setSearchQuery,
@@ -281,6 +484,7 @@ export function EmailProvider({ children }) {
         openCompose,
         closeCompose,
         handleReply,
+        handleReplyAll,
         handleForward,
         fetchCounts
       }}

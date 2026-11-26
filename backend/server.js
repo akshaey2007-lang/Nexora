@@ -62,7 +62,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-demo-mode']
+    allowedHeaders: ['Content-Type', 'Authorization']
   })
 );
 
@@ -90,7 +90,7 @@ if (process.env.MONGODB_URI && isDbConnected()) {
     logger.warn('Failed to configure MongoStore, falling back to memory session store', err.message);
   }
 } else {
-  logger.info('Running with in-memory session store for local/demo mode.');
+  logger.info('Running with in-memory session storage.');
 }
 
 app.use(
@@ -127,7 +127,6 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     database: isDbConnected() ? 'connected' : 'standalone/session',
     hasGoogleCredentials,
-    demoModeEnabled: process.env.DEMO_MODE_FALLBACK === 'true',
     environment: process.env.NODE_ENV || 'development'
   });
 });

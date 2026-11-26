@@ -1,30 +1,20 @@
+import path from 'path';
 import { GmailService } from '../services/gmailService.js';
 import { getAuthorizedClient } from '../services/tokenService.js';
-import { demoStore } from '../services/demoService.js';
-import { logger } from '../utils/logger.js';
 
 async function getAuth(req) {
-  if (req.isDemo) return null;
   return await getAuthorizedClient(req.user);
 }
 
 export async function getInbox(req, res, next) {
   try {
     const { pageToken, maxResults } = req.query;
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        data: demoStore.list({ folder: 'inbox' })
-      });
-    }
-
     const auth = await getAuth(req);
     const data = await GmailService.listMessages(auth, {
       labelIds: ['INBOX'],
       pageToken,
       maxResults: parseInt(maxResults, 10) || 25
     });
-
     res.json({ success: true, data });
   } catch (error) {
     next(error);
@@ -34,20 +24,12 @@ export async function getInbox(req, res, next) {
 export async function getSent(req, res, next) {
   try {
     const { pageToken, maxResults } = req.query;
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        data: demoStore.list({ folder: 'sent' })
-      });
-    }
-
     const auth = await getAuth(req);
     const data = await GmailService.listMessages(auth, {
       labelIds: ['SENT'],
       pageToken,
       maxResults: parseInt(maxResults, 10) || 25
     });
-
     res.json({ success: true, data });
   } catch (error) {
     next(error);
@@ -57,20 +39,12 @@ export async function getSent(req, res, next) {
 export async function getStarred(req, res, next) {
   try {
     const { pageToken, maxResults } = req.query;
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        data: demoStore.list({ folder: 'starred' })
-      });
-    }
-
     const auth = await getAuth(req);
     const data = await GmailService.listMessages(auth, {
       labelIds: ['STARRED'],
       pageToken,
       maxResults: parseInt(maxResults, 10) || 25
     });
-
     res.json({ success: true, data });
   } catch (error) {
     next(error);
@@ -80,20 +54,44 @@ export async function getStarred(req, res, next) {
 export async function getImportant(req, res, next) {
   try {
     const { pageToken, maxResults } = req.query;
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        data: demoStore.list({ folder: 'important' })
-      });
-    }
-
     const auth = await getAuth(req);
     const data = await GmailService.listMessages(auth, {
       labelIds: ['IMPORTANT'],
       pageToken,
       maxResults: parseInt(maxResults, 10) || 25
     });
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+}
 
+export async function getArchive(req, res, next) {
+  try {
+    const { pageToken, maxResults } = req.query;
+    const auth = await getAuth(req);
+    const data = await GmailService.listMessages(auth, {
+      labelIds: [],
+      q: '-in:inbox -in:trash -in:spam -in:drafts',
+      pageToken,
+      maxResults: parseInt(maxResults, 10) || 25
+    });
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getByLabel(req, res, next) {
+  try {
+    const { labelId } = req.params;
+    const { pageToken, maxResults } = req.query;
+    const auth = await getAuth(req);
+    const data = await GmailService.listMessages(auth, {
+      labelIds: [labelId],
+      pageToken,
+      maxResults: parseInt(maxResults, 10) || 25
+    });
     res.json({ success: true, data });
   } catch (error) {
     next(error);
@@ -103,20 +101,23 @@ export async function getImportant(req, res, next) {
 export async function getDrafts(req, res, next) {
   try {
     const { pageToken, maxResults } = req.query;
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        data: demoStore.list({ folder: 'drafts' })
-      });
-    }
-
     const auth = await getAuth(req);
     const data = await GmailService.listDrafts(auth, {
       pageToken,
       maxResults: parseInt(maxResults, 10) || 25
     });
-
     res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDraftById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const auth = await getAuth(req);
+    const draft = await GmailService.getDraft(auth, id);
+    res.json({ success: true, draft });
   } catch (error) {
     next(error);
   }
@@ -125,20 +126,12 @@ export async function getDrafts(req, res, next) {
 export async function getSpam(req, res, next) {
   try {
     const { pageToken, maxResults } = req.query;
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        data: demoStore.list({ folder: 'spam' })
-      });
-    }
-
     const auth = await getAuth(req);
     const data = await GmailService.listMessages(auth, {
       labelIds: ['SPAM'],
       pageToken,
       maxResults: parseInt(maxResults, 10) || 25
     });
-
     res.json({ success: true, data });
   } catch (error) {
     next(error);
@@ -148,20 +141,12 @@ export async function getSpam(req, res, next) {
 export async function getTrash(req, res, next) {
   try {
     const { pageToken, maxResults } = req.query;
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        data: demoStore.list({ folder: 'trash' })
-      });
-    }
-
     const auth = await getAuth(req);
     const data = await GmailService.listMessages(auth, {
       labelIds: ['TRASH'],
       pageToken,
       maxResults: parseInt(maxResults, 10) || 25
     });
-
     res.json({ success: true, data });
   } catch (error) {
     next(error);
@@ -171,14 +156,6 @@ export async function getTrash(req, res, next) {
 export async function getEmailById(req, res, next) {
   try {
     const { id } = req.params;
-    if (req.isDemo) {
-      const email = demoStore.get(id);
-      if (!email) {
-        return res.status(404).json({ success: false, message: 'Message not found' });
-      }
-      return res.json({ success: true, email });
-    }
-
     const auth = await getAuth(req);
     const email = await GmailService.getMessage(auth, id);
     res.json({ success: true, email });
@@ -189,27 +166,11 @@ export async function getEmailById(req, res, next) {
 
 export async function sendEmail(req, res, next) {
   try {
-    const { to, cc, bcc, subject, body, inReplyTo, references, threadId } = req.body;
+    const { to, cc, bcc, subject, body, inReplyTo, references, threadId, draftId } = req.body;
     const attachments = req.files || [];
 
-    if (!to) {
-      return res.status(400).json({ success: false, message: 'Recipient address (To) is required.' });
-    }
-
-    if (req.isDemo) {
-      const sent = demoStore.send({
-        to,
-        cc,
-        bcc,
-        subject,
-        body,
-        attachments
-      });
-      return res.json({
-        success: true,
-        message: 'Email successfully sent (Demo simulation)',
-        email: sent
-      });
+    if (!to || !to.trim() || !to.includes('@')) {
+      return res.status(400).json({ success: false, message: 'Please provide at least one valid recipient email address.' });
     }
 
     const auth = await getAuth(req);
@@ -217,11 +178,11 @@ export async function sendEmail(req, res, next) {
 
     const result = await GmailService.sendMessage(auth, {
       from: userEmail,
-      to,
-      cc,
-      bcc,
+      to: to.trim(),
+      cc: cc ? cc.trim() : undefined,
+      bcc: bcc ? bcc.trim() : undefined,
       subject,
-      body,
+      body: body || '',
       isHtml: true,
       attachments,
       inReplyTo,
@@ -229,9 +190,14 @@ export async function sendEmail(req, res, next) {
       threadId
     });
 
+    // If sent from an open draft, remove the draft entry after successful delivery
+    if (draftId) {
+      await GmailService.deleteDraft(auth, draftId).catch(() => {});
+    }
+
     res.json({
       success: true,
-      message: 'Email successfully sent via Gmail API.',
+      message: 'Email sent.',
       data: result
     });
   } catch (error) {
@@ -243,20 +209,15 @@ export async function createDraft(req, res, next) {
   try {
     const { to, cc, bcc, subject, body, threadId } = req.body;
     const attachments = req.files || [];
-
-    if (req.isDemo) {
-      const draft = demoStore.createDraft({ to, cc, bcc, subject, body });
-      return res.json({ success: true, draft });
-    }
-
     const auth = await getAuth(req);
+
     const result = await GmailService.createDraft(auth, {
       from: req.user.email,
-      to,
+      to: to || '',
       cc,
       bcc,
       subject,
-      body,
+      body: body || '',
       attachments,
       threadId
     });
@@ -271,20 +232,17 @@ export async function updateDraft(req, res, next) {
   try {
     const { id } = req.params;
     const { to, cc, bcc, subject, body, threadId } = req.body;
-
-    if (req.isDemo) {
-      const draft = demoStore.updateDraft(id, { to, cc, bcc, subject, body });
-      return res.json({ success: true, draft });
-    }
-
+    const attachments = req.files || [];
     const auth = await getAuth(req);
+
     const result = await GmailService.updateDraft(auth, id, {
       from: req.user.email,
-      to,
+      to: to || '',
       cc,
       bcc,
       subject,
-      body,
+      body: body || '',
+      attachments,
       threadId
     });
 
@@ -297,14 +255,9 @@ export async function updateDraft(req, res, next) {
 export async function deleteDraft(req, res, next) {
   try {
     const { id } = req.params;
-    if (req.isDemo) {
-      demoStore.deleteDraft(id);
-      return res.json({ success: true, message: 'Draft deleted' });
-    }
-
     const auth = await getAuth(req);
     await GmailService.deleteDraft(auth, id);
-    res.json({ success: true, message: 'Draft removed from Gmail' });
+    res.json({ success: true, message: 'Draft deleted.' });
   } catch (error) {
     next(error);
   }
@@ -313,18 +266,9 @@ export async function deleteDraft(req, res, next) {
 export async function sendDraft(req, res, next) {
   try {
     const { id } = req.params;
-    if (req.isDemo) {
-      const draft = demoStore.get(id);
-      if (draft) {
-        demoStore.deleteDraft(id);
-        demoStore.send(draft);
-      }
-      return res.json({ success: true, message: 'Draft sent' });
-    }
-
     const auth = await getAuth(req);
     const result = await GmailService.sendDraft(auth, id);
-    res.json({ success: true, message: 'Draft sent via Gmail API', data: result });
+    res.json({ success: true, message: 'Draft sent.', data: result });
   } catch (error) {
     next(error);
   }
@@ -334,13 +278,8 @@ export async function markRead(req, res, next) {
   try {
     const { id } = req.params;
     const { isRead = true } = req.body;
-
-    if (req.isDemo) {
-      demoStore.markRead(id, isRead);
-      return res.json({ success: true, id, isUnread: !isRead });
-    }
-
     const auth = await getAuth(req);
+
     await GmailService.modifyMessage(auth, id, {
       addLabelIds: isRead ? [] : ['UNREAD'],
       removeLabelIds: isRead ? ['UNREAD'] : []
@@ -356,13 +295,8 @@ export async function toggleStar(req, res, next) {
   try {
     const { id } = req.params;
     const { isStarred } = req.body;
-
-    if (req.isDemo) {
-      const email = demoStore.toggleStar(id);
-      return res.json({ success: true, id, isStarred: email ? email.isStarred : false });
-    }
-
     const auth = await getAuth(req);
+
     await GmailService.modifyMessage(auth, id, {
       addLabelIds: isStarred ? ['STARRED'] : [],
       removeLabelIds: isStarred ? [] : ['STARRED']
@@ -377,17 +311,13 @@ export async function toggleStar(req, res, next) {
 export async function archiveEmail(req, res, next) {
   try {
     const { id } = req.params;
-    if (req.isDemo) {
-      demoStore.archive(id);
-      return res.json({ success: true, id, message: 'Message archived' });
-    }
-
     const auth = await getAuth(req);
+
     await GmailService.modifyMessage(auth, id, {
       removeLabelIds: ['INBOX']
     });
 
-    res.json({ success: true, id, message: 'Message archived from Inbox' });
+    res.json({ success: true, id, message: 'Archived.' });
   } catch (error) {
     next(error);
   }
@@ -396,14 +326,9 @@ export async function archiveEmail(req, res, next) {
 export async function trashEmail(req, res, next) {
   try {
     const { id } = req.params;
-    if (req.isDemo) {
-      demoStore.trash(id);
-      return res.json({ success: true, id, message: 'Message moved to trash' });
-    }
-
     const auth = await getAuth(req);
     await GmailService.trashMessage(auth, id);
-    res.json({ success: true, id, message: 'Message moved to Gmail Trash' });
+    res.json({ success: true, id, message: 'Moved to Trash.' });
   } catch (error) {
     next(error);
   }
@@ -412,14 +337,42 @@ export async function trashEmail(req, res, next) {
 export async function restoreEmail(req, res, next) {
   try {
     const { id } = req.params;
-    if (req.isDemo) {
-      demoStore.untrash(id);
-      return res.json({ success: true, id, message: 'Message restored from trash' });
+    const auth = await getAuth(req);
+    await GmailService.untrashMessage(auth, id);
+    res.json({ success: true, id, message: 'Restored from Trash.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function bulkAction(req, res, next) {
+  try {
+    const { ids, action } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No messages selected.' });
     }
 
     const auth = await getAuth(req);
-    await GmailService.untrashMessage(auth, id);
-    res.json({ success: true, id, message: 'Message restored from Trash' });
+
+    if (action === 'markRead') {
+      await GmailService.batchModifyMessages(auth, ids, { removeLabelIds: ['UNREAD'] });
+    } else if (action === 'markUnread') {
+      await GmailService.batchModifyMessages(auth, ids, { addLabelIds: ['UNREAD'] });
+    } else if (action === 'star') {
+      await GmailService.batchModifyMessages(auth, ids, { addLabelIds: ['STARRED'] });
+    } else if (action === 'unstar') {
+      await GmailService.batchModifyMessages(auth, ids, { removeLabelIds: ['STARRED'] });
+    } else if (action === 'archive') {
+      await GmailService.batchModifyMessages(auth, ids, { removeLabelIds: ['INBOX'] });
+    } else if (action === 'trash') {
+      await Promise.all(ids.map((id) => GmailService.trashMessage(auth, id)));
+    } else if (action === 'restore') {
+      await Promise.all(ids.map((id) => GmailService.untrashMessage(auth, id)));
+    } else {
+      return res.status(400).json({ success: false, message: 'Unsupported bulk action.' });
+    }
+
+    res.json({ success: true, count: ids.length, action });
   } catch (error) {
     next(error);
   }
@@ -430,13 +383,6 @@ export async function searchEmails(req, res, next) {
     const { q, pageToken, maxResults } = req.query;
     if (!q || !q.trim()) {
       return res.json({ success: true, data: { messages: [], nextPageToken: null } });
-    }
-
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        data: demoStore.list({ q })
-      });
     }
 
     const auth = await getAuth(req);
@@ -456,20 +402,19 @@ export async function searchEmails(req, res, next) {
 export async function getAttachment(req, res, next) {
   try {
     const { messageId, attachmentId } = req.params;
-
-    if (req.isDemo) {
-      // In demo mode send sample text/file data
-      const sampleContent = Buffer.from('NEXORA MAIL Sample Attachment Content');
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('Content-Disposition', 'attachment; filename="demo_document.txt"');
-      return res.send(sampleContent);
-    }
+    const { filename, mimeType } = req.query;
 
     const auth = await getAuth(req);
     const { data } = await GmailService.getAttachment(auth, messageId, attachmentId);
-    const fileBuffer = Buffer.from(data, 'base64');
+    const fileBuffer = Buffer.from(data, 'base64url');
 
-    res.setHeader('Content-Type', 'application/octet-stream');
+    const safeFilename = path.basename(String(filename || 'attachment')).replace(/[\r\n"]/g, '_');
+    const safeMime = /^[a-z0-9.+/-]+$/i.test(String(mimeType || ''))
+      ? String(mimeType)
+      : 'application/octet-stream';
+
+    res.setHeader('Content-Type', safeMime);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
     res.send(fileBuffer);
   } catch (error) {
     next(error);
@@ -478,16 +423,19 @@ export async function getAttachment(req, res, next) {
 
 export async function getUnreadCounts(req, res, next) {
   try {
-    if (req.isDemo) {
-      return res.json({
-        success: true,
-        counts: demoStore.getCounts()
-      });
-    }
-
     const auth = await getAuth(req);
-    const counts = await GmailService.getUnreadCounts(auth);
-    res.json({ success: true, counts });
+    const { counts, customLabels } = await GmailService.getUnreadCounts(auth);
+    res.json({ success: true, counts, customLabels });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMailboxProfile(req, res, next) {
+  try {
+    const auth = await getAuth(req);
+    const profile = await GmailService.getProfile(auth);
+    res.json({ success: true, profile });
   } catch (error) {
     next(error);
   }

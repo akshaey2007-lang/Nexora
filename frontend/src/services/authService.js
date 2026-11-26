@@ -19,10 +19,6 @@ export const authService = {
 
   disconnect: async () => {
     return await api.post('/api/auth/disconnect');
-  },
-
-  enableDemoMode: async () => {
-    return await api.post('/auth/demo');
   }
 };
 
