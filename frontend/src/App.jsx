@@ -18,12 +18,14 @@ function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-nexora-ivory dark:bg-nexora-dark-bg text-nexora-navy dark:text-white gap-3">
-        <div className="w-10 h-10 rounded-xl bg-nexora-electric flex items-center justify-center text-white font-bold animate-bounce shadow-nexora-glow">
-          N
-        </div>
-        <p className="text-xs font-semibold text-nexora-muted tracking-wider uppercase">
-          Initializing NEXORA MAIL...
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-nexora-ivory dark:bg-nexora-dark-bg text-slate-900 dark:text-white gap-3">
+        <img
+          src="/nexora-icon.png"
+          alt="Nexora Mail"
+          className="w-10 h-10 object-contain animate-pulse"
+        />
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 tracking-wide">
+          Loading Nexora Mail...
         </p>
       </div>
     );

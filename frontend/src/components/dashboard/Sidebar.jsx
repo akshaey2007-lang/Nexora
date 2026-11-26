@@ -64,9 +64,11 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             onClick={() => handleSelectFolder('inbox')}
             className="flex items-center gap-2.5 min-w-0"
           >
-            <div className="w-8 h-8 rounded-lg bg-nexora-electric flex items-center justify-center flex-shrink-0 text-white font-bold text-sm shadow-nexora-xs">
-              N
-            </div>
+            <img
+              src="/nexora-icon.png"
+              alt="Nexora Mail"
+              className="w-8 h-8 object-contain flex-shrink-0"
+            />
             {!isRail && (
               <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white truncate">
                 Nexora Mail

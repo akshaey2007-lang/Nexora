@@ -27,9 +27,11 @@ export default function LandingPage() {
       {/* Top Navigation */}
       <header className="h-16 border-b border-nexora-border dark:border-nexora-border-dark px-5 sm:px-10 lg:px-16 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-nexora-electric flex items-center justify-center text-white font-bold text-sm shadow-nexora-xs">
-            N
-          </div>
+          <img
+            src="/nexora-icon.png"
+            alt="Nexora Mail"
+            className="w-8 h-8 object-contain flex-shrink-0"
+          />
           <span className="font-semibold text-base tracking-tight text-slate-900 dark:text-white">
             Nexora Mail
           </span>
