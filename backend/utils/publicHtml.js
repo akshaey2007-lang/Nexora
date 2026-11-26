@@ -112,8 +112,13 @@ export function renderSpaWithPublicFallback(distPath, routePath) {
   let html = getTemplate(distPath);
 
   // Inject Google Search Console meta verification tag if configured via env var
-  const siteVerify = (process.env.GOOGLE_SITE_VERIFICATION || '').trim();
+  let siteVerify = (process.env.GOOGLE_SITE_VERIFICATION || '').trim();
   if (siteVerify) {
+    // Support either raw token or full <meta name="google-site-verification" content="..." /> tag
+    const contentMatch = siteVerify.match(/content=["']([^"']+)["']/i);
+    if (contentMatch) {
+      siteVerify = contentMatch[1].trim();
+    }
     html = html.replace(
       '</head>',
       `    <meta name="google-site-verification" content="${escapeHtml(siteVerify)}" />\n  </head>`
