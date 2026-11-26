@@ -108,35 +108,78 @@ function getTemplate(distPath) {
   return cachedTemplate;
 }
 
-export function renderSpaWithPublicFallback(distPath, routePath) {
+export function renderSpaWithPublicFallback(distPath, routePath, baseUrl = 'https://nexora-mail-nopu.onrender.com') {
   let html = getTemplate(distPath);
+  const cleanBase = baseUrl.replace(/\/$/, '');
 
   // Inject Google Search Console meta verification tag if configured via env var
   let siteVerify = (process.env.GOOGLE_SITE_VERIFICATION || '').trim();
+  const extraHeadTags = [];
+
   if (siteVerify) {
     // Support either raw token or full <meta name="google-site-verification" content="..." /> tag
     const contentMatch = siteVerify.match(/content=["']([^"']+)["']/i);
     if (contentMatch) {
       siteVerify = contentMatch[1].trim();
     }
-    html = html.replace(
-      '</head>',
-      `    <meta name="google-site-verification" content="${escapeHtml(siteVerify)}" />\n  </head>`
-    );
+    extraHeadTags.push(`<meta name="google-site-verification" content="${escapeHtml(siteVerify)}" />`);
   }
 
   let fallbackBody = '';
   let pageTitle = 'NEXORA MAIL';
+  let pageDescription =
+    'NEXORA MAIL is an email management web application built on the official Google Gmail API for reading, composing, searching, and organizing Gmail.';
+  let isIndexable = false;
 
   if (routePath === '/privacy') {
     fallbackBody = PRIVACY_HTML;
     pageTitle = 'Privacy Policy — NEXORA MAIL';
+    pageDescription = 'Privacy Policy and Google API Limited Use compliance for NEXORA MAIL.';
+    isIndexable = true;
   } else if (routePath === '/terms') {
     fallbackBody = TERMS_HTML;
     pageTitle = 'Terms of Service — NEXORA MAIL';
+    pageDescription = 'Terms of Service for using the NEXORA MAIL web application.';
+    isIndexable = true;
   } else if (routePath === '/') {
     fallbackBody = HOME_HTML;
     pageTitle = 'NEXORA MAIL — Focused Gmail Management Workspace';
+    isIndexable = true;
+  }
+
+  if (isIndexable) {
+    const canonicalUrl = `${cleanBase}${routePath === '/' ? '/' : routePath}`;
+    extraHeadTags.push(`<meta name="robots" content="index, follow" />`);
+    extraHeadTags.push(`<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />`);
+    extraHeadTags.push(`<meta property="og:type" content="website" />`);
+    extraHeadTags.push(`<meta property="og:site_name" content="NEXORA MAIL" />`);
+    extraHeadTags.push(`<meta property="og:title" content="${escapeHtml(pageTitle)}" />`);
+    extraHeadTags.push(`<meta property="og:description" content="${escapeHtml(pageDescription)}" />`);
+    extraHeadTags.push(`<meta property="og:url" content="${escapeHtml(canonicalUrl)}" />`);
+    extraHeadTags.push(`<meta property="og:image" content="${escapeHtml(cleanBase)}/nexora-icon.png" />`);
+    extraHeadTags.push(`<meta name="twitter:card" content="summary" />`);
+    extraHeadTags.push(`<meta name="twitter:title" content="${escapeHtml(pageTitle)}" />`);
+    extraHeadTags.push(`<meta name="twitter:description" content="${escapeHtml(pageDescription)}" />`);
+    extraHeadTags.push(`<meta name="twitter:image" content="${escapeHtml(cleanBase)}/nexora-icon.png" />`);
+
+    if (routePath === '/') {
+      const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'NEXORA MAIL',
+        applicationCategory: 'CommunicationApplication',
+        operatingSystem: 'Web',
+        url: cleanBase,
+        description: pageDescription
+      };
+      extraHeadTags.push(`<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`);
+    }
+  } else {
+    extraHeadTags.push(`<meta name="robots" content="noindex, nofollow" />`);
+  }
+
+  if (extraHeadTags.length > 0) {
+    html = html.replace('</head>', `    ${extraHeadTags.join('\n    ')}\n  </head>`);
   }
 
   if (fallbackBody) {

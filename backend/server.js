@@ -150,6 +150,45 @@ app.use((req, res, next) => {
   return next();
 });
 
+// SEO: robots.txt & sitemap.xml for Google Search indexing
+app.get('/robots.txt', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.type('text/plain').send(
+    [
+      'User-agent: *',
+      'Allow: /',
+      'Allow: /privacy',
+      'Allow: /terms',
+      'Disallow: /dashboard',
+      'Disallow: /settings',
+      'Disallow: /api/',
+      'Disallow: /auth/',
+      '',
+      `Sitemap: ${baseUrl}/sitemap.xml`
+    ].join('\n')
+  );
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const today = new Date().toISOString().split('T')[0];
+  const urls = [
+    { loc: `${baseUrl}/`, changefreq: 'weekly', priority: '1.0' },
+    { loc: `${baseUrl}/privacy`, changefreq: 'monthly', priority: '0.5' },
+    { loc: `${baseUrl}/terms`, changefreq: 'monthly', priority: '0.5' }
+  ];
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...urls.map(
+      (u) =>
+        `  <url><loc>${u.loc}</loc><lastmod>${today}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
+    ),
+    '</urlset>'
+  ].join('\n');
+  res.type('application/xml').send(xml);
+});
+
 // Handle Google OAuth callbacks sent to root '/' if GOOGLE_REDIRECT_URI omits '/auth/google/callback'
 app.get('/', (req, res, next) => {
   if (req.query.code || req.query.error) {
@@ -164,7 +203,8 @@ if (fs.existsSync(frontendDistPath)) {
   // Serve crawler-readable pre-rendered fallback HTML for public landing/compliance pages
   // (React immediately mounts over #root in browsers)
   app.get(['/', '/privacy', '/terms'], (req, res) => {
-    res.type('text/html').send(renderSpaWithPublicFallback(frontendDistPath, req.path));
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    res.type('text/html').send(renderSpaWithPublicFallback(frontendDistPath, req.path, baseUrl));
   });
 
   app.use(express.static(frontendDistPath, { index: false }));
@@ -174,7 +214,8 @@ if (fs.existsSync(frontendDistPath)) {
     if (req.path.startsWith('/api') || req.path.startsWith('/auth')) {
       return next();
     }
-    res.type('text/html').send(renderSpaWithPublicFallback(frontendDistPath, req.path));
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    res.type('text/html').send(renderSpaWithPublicFallback(frontendDistPath, req.path, baseUrl));
   });
 } else {
   app.get('/', (req, res) => {
