@@ -63,7 +63,8 @@ const PRIVACY_HTML = `
       <p>When you sign in to NEXORA MAIL with Google OAuth 2.0, we access only the minimum scopes needed to operate your email workspace: <code>openid</code>, <code>userinfo.email</code>, <code>userinfo.profile</code>, and <code>https://www.googleapis.com/auth/gmail.modify</code>.</p>
       <h2>2. How We Use &amp; Protect Your Data</h2>
       <ul>
-        <li><strong>Gmail Remains Source of Truth:</strong> NEXORA MAIL retrieves messages directly from Gmail when requested and does not permanently store your email bodies or attachments in our database or server filesystem.</li>
+        <li><strong>Gmail Remains Source of Truth:</strong> NEXORA MAIL retrieves messages directly from Gmail and does not permanently store incoming emails or attachments. Only user-confirmed Scheduled Emails are stored in MongoDB until dispatched via Gmail API or deleted.</li>
+        <li><strong>Local On-Device AI:</strong> NEXORA AI processes writing and smart-reply requests locally inside your browser via WebLLM/WebGPU without transmitting mailbox data to external AI APIs.</li>
         <li><strong>Encrypted Storage:</strong> OAuth refresh and access tokens are encrypted at rest with AES-256-GCM and bound to HTTP-only session cookies.</li>
         <li><strong>No Third-Party Sharing or AI Training:</strong> We never sell, share, rent, or transfer Google user data to third parties, advertisers, or machine learning models.</li>
       </ul>

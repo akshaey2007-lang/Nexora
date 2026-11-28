@@ -14,12 +14,16 @@ import {
   List,
   ListOrdered,
   Link as LinkIcon,
-  RemoveFormatting
+  RemoveFormatting,
+  Sparkles,
+  CalendarClock
 } from 'lucide-react';
 import { useEmails } from '../../context/EmailContext';
 import { useToast } from '../../context/ToastContext';
 import emailService from '../../services/emailService';
 import { formatFileSize } from '../../utils/dateFormatter';
+import AIWritingPanel from '../ai/AIWritingPanel';
+import AISchedulePanel from '../ai/AISchedulePanel';
 
 export default function ComposeModal() {
   const { isComposeOpen, closeCompose, composeData, loadEmails, fetchCounts } = useEmails();
@@ -39,6 +43,8 @@ export default function ComposeModal() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [linkInputOpen, setLinkInputOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [schedulePanelOpen, setSchedulePanelOpen] = useState(false);
 
   const editorRef = useRef(null);
 
@@ -54,6 +60,8 @@ export default function ComposeModal() {
     setIsMinimized(false);
     setLinkInputOpen(false);
     setLinkUrl('');
+    setAiPanelOpen(false);
+    setSchedulePanelOpen(false);
 
     if (editorRef.current) {
       editorRef.current.innerHTML = composeData.body || '';
@@ -65,6 +73,13 @@ export default function ComposeModal() {
   const syncEditorContent = () => {
     if (editorRef.current) {
       setBodyHtml(editorRef.current.innerHTML);
+    }
+  };
+
+  const applyBodyFromAI = (nextHtml) => {
+    setBodyHtml(nextHtml);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = nextHtml;
     }
   };
 
@@ -413,7 +428,60 @@ export default function ComposeModal() {
             >
               <RemoveFormatting className="w-3.5 h-3.5" />
             </button>
+
+            <div className="ml-auto flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setSchedulePanelOpen(false);
+                  setAiPanelOpen((v) => !v);
+                }}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  aiPanelOpen
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:hover:bg-violet-500/30'
+                }`}
+                title="Write or rewrite with local Nexora AI"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Write with Nexora AI</span>
+              </button>
+            </div>
           </div>
+
+          {aiPanelOpen && (
+            <AIWritingPanel
+              subject={subject}
+              bodyHtml={editorRef.current ? editorRef.current.innerHTML : bodyHtml}
+              onApplySubject={setSubject}
+              onApplyBodyHtml={applyBodyFromAI}
+              onClose={() => setAiPanelOpen(false)}
+            />
+          )}
+
+          {schedulePanelOpen && (
+            <div className="p-3 border-b border-nexora-border dark:border-nexora-border-dark max-h-72 overflow-y-auto bg-slate-50/70 dark:bg-nexora-dark-card/40 space-y-2">
+              {attachments.length > 0 && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                  Note: Scheduled sending stores and delivers your message text/HTML only. Attachments require immediate Send.
+                </p>
+              )}
+              <AISchedulePanel
+                initialDraft={{
+                  to,
+                  cc,
+                  bcc,
+                  subject,
+                  bodyHtml: editorRef.current ? editorRef.current.innerHTML : bodyHtml
+                }}
+                onScheduled={() => {
+                  setSchedulePanelOpen(false);
+                  closeCompose();
+                }}
+                onCancel={() => setSchedulePanelOpen(false)}
+              />
+            </div>
+          )}
 
           {linkInputOpen && (
             <div className="px-4 py-2 bg-slate-50 dark:bg-nexora-dark-card border-b border-nexora-border dark:border-nexora-border-dark flex items-center gap-2">
@@ -497,6 +565,23 @@ export default function ComposeModal() {
               >
                 <Save className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{savingDraft ? 'Saving...' : 'Save draft'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAiPanelOpen(false);
+                  setSchedulePanelOpen((v) => !v);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                  schedulePanelOpen
+                    ? 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300'
+                    : 'border-nexora-border dark:border-nexora-border-dark text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-nexora-dark-card'
+                }`}
+                title="Schedule email using natural language or date/time"
+              >
+                <CalendarClock className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Schedule</span>
               </button>
             </div>
 

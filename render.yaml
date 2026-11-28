@@ -25,3 +25,7 @@ services:
         sync: false
       - key: GOOGLE_REDIRECT_URI
         sync: false
+      - key: SCHEDULER_SECRET
+        generateValue: true
+      - key: ENABLE_IN_PROCESS_SCHEDULER
+        value: "true"

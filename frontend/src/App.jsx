@@ -2,12 +2,15 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { EmailProvider } from './context/EmailContext';
+import { AIProvider } from './context/AIContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 
 import DashboardLayout from './layouts/DashboardLayout';
 import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
+import AIAssistantPage from './pages/AIAssistantPage';
+import ScheduledEmailsPage from './pages/ScheduledEmailsPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthErrorPage from './pages/AuthErrorPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
@@ -45,43 +48,67 @@ export default function App() {
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <EmailProvider>
-            <BrowserRouter>
-              <Routes>
-                {/* Public Pages */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/privacy" element={<PrivacyPolicyPage />} />
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/auth/error" element={<AuthErrorPage />} />
+          <AIProvider>
+            <EmailProvider>
+              <BrowserRouter>
+                <Routes>
+                  {/* Public Pages */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/auth/error" element={<AuthErrorPage />} />
 
-                {/* Authenticated Dashboard Routes */}
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <DashboardLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<DashboardPage />} />
-                </Route>
+                  {/* Authenticated Dashboard Routes */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<DashboardPage />} />
+                  </Route>
 
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <DashboardLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<SettingsPage />} />
-                </Route>
+                  <Route
+                    path="/ai"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<AIAssistantPage />} />
+                  </Route>
 
-                {/* 404 Fallback */}
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-            </BrowserRouter>
-          </EmailProvider>
+                  <Route
+                    path="/scheduled"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<ScheduledEmailsPage />} />
+                  </Route>
+
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<SettingsPage />} />
+                  </Route>
+
+                  {/* 404 Fallback */}
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </BrowserRouter>
+            </EmailProvider>
+          </AIProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

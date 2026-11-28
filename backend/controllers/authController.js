@@ -280,7 +280,9 @@ export async function getCurrentUser(req, res) {
         notificationsEnabled: true,
         emailsPerPage: 25,
         signature: '',
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        aiEnabled: true,
+        aiModelId: 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
       },
       hasLiveCredentials: true
     });

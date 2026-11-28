@@ -12,7 +12,8 @@
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev": "node scripts/dev.js",
-    "test": "node scripts/verify-build.js"
+    "test:suite": "node scripts/run-tests.js",
+    "test": "node scripts/verify-build.js && node scripts/run-tests.js"
   },
   "keywords": [
     "gmail",

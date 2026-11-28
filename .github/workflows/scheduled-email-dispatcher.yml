@@ -1,0 +1,52 @@
+name: Nexora Scheduled Email Dispatcher
+
+on:
+  schedule:
+    # Free GitHub Actions cron (runs approximately every 15 minutes).
+    # Note: GitHub Actions scheduled jobs experience trigger delays and
+    # Render Free Web Services sleep after 15 minutes of inactivity, so exact-minute delivery is not guaranteed.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  dispatch-due-emails:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -z "${{ secrets.NEXORA_BACKEND_URL }}" ] || [ -z "${{ secrets.SCHEDULER_SECRET }}" ]; then
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "NEXORA_BACKEND_URL or SCHEDULER_SECRET secret not set yet; skipping dispatcher run."
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wake Render Free Web Service
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          BACKEND_URL="${{ secrets.NEXORA_BACKEND_URL }}"
+          BACKEND_URL="${BACKEND_URL%/}"
+          for attempt in 1 2 3 4; do
+            echo "Waking $BACKEND_URL/api/health (attempt $attempt)..."
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 45 "$BACKEND_URL/api/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend is awake."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Proceeding after wake-up attempts..."
+
+      - name: Process Due Scheduled Emails
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          BACKEND_URL="${{ secrets.NEXORA_BACKEND_URL }}"
+          BACKEND_URL="${BACKEND_URL%/}"
+          RESPONSE=$(curl -sS --fail-with-body --max-time 60 \
+            -X POST "$BACKEND_URL/api/scheduled-emails/internal/process" \
+            -H "Content-Type: application/json" \
+            -H "x-scheduler-secret: ${{ secrets.SCHEDULER_SECRET }}" \
+            -d '{"limit":25}')
+          echo "Dispatcher response: $RESPONSE"

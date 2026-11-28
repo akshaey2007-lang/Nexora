@@ -85,15 +85,15 @@ export default function LandingPage() {
       <main className="flex-1 max-w-5xl mx-auto px-5 sm:px-8 pt-20 pb-24 flex flex-col items-center text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/15 text-nexora-electric dark:text-indigo-300 font-medium text-xs mb-6 border border-indigo-200/70 dark:border-indigo-500/30">
           <Shield className="w-3.5 h-3.5" />
-          <span>Google OAuth 2.0 &bull; Gmail API v1</span>
+          <span>NEXORA MAIL &bull; AI-Powered Email Management &bull; Free Local WebGPU AI</span>
         </div>
 
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl leading-[1.12] text-slate-900 dark:text-white">
-          NEXORA MAIL — A focused workspace for your Gmail inbox.
+          NEXORA MAIL — Intelligent AI email management in your browser.
         </h1>
 
         <p className="mt-5 text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
-          NEXORA MAIL is an email management web application powered by the Google Gmail API. Connect your Gmail account to read conversations, compose rich-text emails with attachments, search across labels, and organize your mailbox without clutter.
+          NEXORA MAIL combines real Google Gmail API sync with NEXORA AI — an open-source local WebGPU assistant for writing emails, formal letters, smart replies, rewrites, and natural-language scheduling at zero AI API cost.
         </p>
 
         {/* Primary CTA */}

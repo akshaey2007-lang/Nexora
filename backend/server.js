@@ -15,8 +15,10 @@ import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import emailRoutes from './routes/emailRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import scheduledEmailRoutes from './routes/scheduledEmailRoutes.js';
 import { handleGoogleCallback } from './controllers/authController.js';
 import { renderSpaWithPublicFallback } from './utils/publicHtml.js';
+import { startInProcessScheduler } from './services/schedulerService.js';
 
 // Resolve environment paths
 const __filename = fileURLToPath(import.meta.url);
@@ -137,6 +139,7 @@ app.use('/auth', authRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/emails', emailRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/scheduled-emails', scheduledEmailRoutes);
 
 // 8. Production Static File Serving (Monorepo deployment on Render)
 const frontendDistPath = path.join(rootDir, 'frontend', 'dist');
@@ -160,6 +163,8 @@ app.get('/robots.txt', (req, res) => {
       'Allow: /privacy',
       'Allow: /terms',
       'Disallow: /dashboard',
+      'Disallow: /ai',
+      'Disallow: /scheduled',
       'Disallow: /settings',
       'Disallow: /api/',
       'Disallow: /auth/',
@@ -230,13 +235,17 @@ if (fs.existsSync(frontendDistPath)) {
 // 9. Central Error Handler
 app.use(errorHandler);
 
-// 10. Start Server
-app.listen(PORT, () => {
-  logger.success(`=================================================`);
-  logger.success(`🚀 NEXORA MAIL Server running on port ${PORT}`);
-  logger.success(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  logger.success(`🔗 Health Check: http://localhost:${PORT}/api/health`);
-  logger.success(`=================================================`);
-});
+// 10. Start Server & Scheduler (skip auto-listen during automated unit test imports)
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    logger.success(`=================================================`);
+    logger.success(`🚀 NEXORA AI-Powered Mail Server running on port ${PORT}`);
+    logger.success(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.success(`🔗 Health Check: http://localhost:${PORT}/api/health`);
+    logger.success(`=================================================`);
+  });
+
+  startInProcessScheduler();
+}
 
 export default app;

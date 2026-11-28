@@ -10,15 +10,33 @@ import {
   Mail,
   Bell,
   Sliders,
-  UserCheck
+  UserCheck,
+  Sparkles,
+  Cpu,
+  HardDrive,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useAI } from '../context/AIContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import settingsService from '../services/settingsService';
+import AIModelStatus from '../components/ai/AIModelStatus';
+import { formatFileSize } from '../utils/dateFormatter';
 
 export default function SettingsPage() {
   const { user, mailboxProfile, loginWithGoogle, disconnect, logout, settings, setSettings } = useAuth();
+  const {
+    aiEnabled,
+    selectedModelId,
+    models,
+    webgpu,
+    storageEstimate,
+    cached,
+    updateAISettings,
+    clearCachedModel,
+    clearAllCachedModels
+  } = useAI();
   const { theme, setTheme } = useTheme();
   const { success, error } = useToast();
 
@@ -362,7 +380,119 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* 4. Security */}
+        {/* 4. Nexora AI (Free Local Browser Inference) */}
+        <section className="p-5 sm:p-6 rounded-xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark shadow-nexora-xs space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-500/15 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  NEXORA AI &bull; Local Browser Model
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Powered by WebLLM &amp; WebGPU &bull; Free on-device inference (no external AI APIs)
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={aiEnabled}
+              onClick={() => updateAISettings({ aiEnabled: !aiEnabled })}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                aiEnabled ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+              title={aiEnabled ? 'Disable Nexora AI' : 'Enable Nexora AI'}
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                  aiEnabled ? 'translate-x-[18px]' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-violet-50/60 dark:bg-violet-950/20 border border-violet-200/80 dark:border-violet-500/30 text-xs text-violet-900 dark:text-violet-200 space-y-1">
+            <p className="font-medium">
+              Your AI writing requests are processed locally in your browser. Nexora does not require paid AI APIs or external AI subscriptions.
+            </p>
+            <p className="text-[11px] text-violet-700 dark:text-violet-300">
+              Note: Natural-language AI interpretation stays in your browser, while emails you explicitly schedule for later delivery are stored in your Nexora MongoDB queue so the backend can dispatch them through Gmail API.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                Local AI Model
+              </label>
+              <select
+                value={selectedModelId}
+                onChange={(e) => updateAISettings({ aiModelId: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-nexora-ivory dark:bg-nexora-dark-card border border-nexora-border dark:border-nexora-border-dark text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+              >
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.approxDownload} • {m.badge})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="p-3 rounded-lg bg-nexora-ivory dark:bg-nexora-dark-card border border-nexora-border dark:border-nexora-border-dark text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-white">
+                <Cpu className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                <span>
+                  WebGPU Status:{' '}
+                  {webgpu?.supported ? 'Compatible' : webgpu ? 'Unavailable (Template Fallback Active)' : 'Checking...'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {webgpu?.supported
+                  ? `${webgpu.adapterLabel || 'WebGPU GPU Ready'}${webgpu.shaderF16 ? ' • shader-f16 enabled' : ' • f32 compatibility mode'}`
+                  : webgpu?.reason || 'Requires a WebGPU-capable browser such as Chrome 113+ or Edge 113+.'}
+              </p>
+            </div>
+          </div>
+
+          <AIModelStatus />
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-nexora-border dark:border-nexora-border-dark text-xs">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+              <HardDrive className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <span>
+                Selected model cache: <strong>{cached ? 'Cached in Browser' : 'Not cached yet'}</strong>
+                {storageEstimate
+                  ? ` • Browser storage used: ${formatFileSize(storageEstimate.usageBytes)}`
+                  : ''}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => clearCachedModel()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-nexora-border dark:border-nexora-border-dark text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-nexora-dark-card"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear Selected Cache</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => clearAllCachedModels()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear All Model Caches</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. Security */}
         <section className="p-5 sm:p-6 rounded-xl bg-white dark:bg-nexora-dark-surface border border-nexora-border dark:border-nexora-border-dark shadow-nexora-xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">

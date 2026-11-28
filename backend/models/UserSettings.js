@@ -35,6 +35,14 @@ const userSettingsSchema = new mongoose.Schema(
     timezone: {
       type: String,
       default: 'UTC'
+    },
+    aiEnabled: {
+      type: Boolean,
+      default: true
+    },
+    aiModelId: {
+      type: String,
+      default: 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
     }
   },
   {

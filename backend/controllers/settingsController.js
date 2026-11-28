@@ -9,7 +9,9 @@ const DEFAULT_SETTINGS = {
   notificationsEnabled: true,
   emailsPerPage: 25,
   signature: '',
-  timezone: 'UTC'
+  timezone: 'UTC',
+  aiEnabled: true,
+  aiModelId: 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
 };
 
 export async function getSettings(req, res) {
@@ -41,7 +43,16 @@ export async function getSettings(req, res) {
 
 export async function updateSettings(req, res) {
   try {
-    const { theme, sidebarCollapsed, notificationsEnabled, emailsPerPage, signature, timezone } = req.body;
+    const {
+      theme,
+      sidebarCollapsed,
+      notificationsEnabled,
+      emailsPerPage,
+      signature,
+      timezone,
+      aiEnabled,
+      aiModelId
+    } = req.body;
 
     const merged = {
       ...(req.session?.tempSettings || DEFAULT_SETTINGS),
@@ -50,7 +61,9 @@ export async function updateSettings(req, res) {
       ...(notificationsEnabled !== undefined && { notificationsEnabled: Boolean(notificationsEnabled) }),
       ...(emailsPerPage && { emailsPerPage }),
       ...(signature !== undefined && { signature }),
-      ...(timezone && { timezone })
+      ...(timezone && { timezone }),
+      ...(aiEnabled !== undefined && { aiEnabled: Boolean(aiEnabled) }),
+      ...(aiModelId && typeof aiModelId === 'string' && { aiModelId: aiModelId.trim() })
     };
 
     if (!isDbConnected() || !req.user?._id || !mongoose.Types.ObjectId.isValid(req.user._id)) {
@@ -75,6 +88,8 @@ export async function updateSettings(req, res) {
     if (emailsPerPage) settings.emailsPerPage = emailsPerPage;
     if (signature !== undefined) settings.signature = signature;
     if (timezone) settings.timezone = timezone;
+    if (aiEnabled !== undefined) settings.aiEnabled = Boolean(aiEnabled);
+    if (aiModelId && typeof aiModelId === 'string') settings.aiModelId = aiModelId.trim();
 
     await settings.save();
 

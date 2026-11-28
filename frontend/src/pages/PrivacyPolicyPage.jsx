@@ -49,9 +49,10 @@ export default function PrivacyPolicyPage() {
             2. How We Use &amp; Store Your Data
           </h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Gmail Is the Source of Truth:</strong> Nexora Mail does not duplicate or permanently store your email messages, conversation bodies, or attachments in our database or on server disk.</li>
+            <li><strong>Gmail Is the Source of Truth:</strong> Nexora Mail does not permanently store your incoming inbox messages or email attachments in our database or on server disk. If you explicitly confirm and queue a <strong>Scheduled Email</strong>, only that scheduled draft payload (recipient, subject, body, schedule timestamp, timezone) is saved in MongoDB until sent via the Gmail API or deleted.</li>
+            <li><strong>On-Device Browser AI (Zero Paid External AI APIs):</strong> AI writing, rewriting, and smart-reply generation run locally inside your browser via WebLLM / WebGPU. Your email content is never forwarded to external OpenAI, Gemini, or Claude servers or used to train models.</li>
             <li><strong>Encrypted Credentials:</strong> OAuth tokens are encrypted at rest using AES-256-GCM and are stored strictly server-side alongside HTTP-only session cookies.</li>
-            <li><strong>No Third-Party Sharing or Ads:</strong> We never sell, rent, share, or use your Gmail content for advertising, data brokering, or training generalized AI/ML models.</li>
+            <li><strong>No Third-Party Sharing or Ads:</strong> We never sell, rent, share, or use your Gmail content for advertising, data brokering, or training AI/ML models.</li>
           </ul>
         </section>
 

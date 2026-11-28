@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import emailService from '../services/emailService';
+import schedulingService from '../services/scheduling/schedulingService';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 
@@ -29,6 +30,7 @@ export function EmailProvider({ children }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [counts, setCounts] = useState(INITIAL_COUNTS);
+  const [scheduledCount, setScheduledCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [nextPageToken, setNextPageToken] = useState(null);
 
@@ -79,6 +81,23 @@ export function EmailProvider({ children }) {
       // Non-blocking badge refresh
     }
   }, [isAuthenticated, settings?.notificationsEnabled]);
+
+  const refreshScheduledCount = useCallback(async () => {
+    if (!isAuthenticated) {
+      setScheduledCount(0);
+      return;
+    }
+    try {
+      const res = await schedulingService.listScheduledEmails('Scheduled');
+      if (res?.summary?.Scheduled !== undefined) {
+        setScheduledCount(res.summary.Scheduled);
+      } else if (Array.isArray(res?.scheduledEmails)) {
+        setScheduledCount(res.scheduledEmails.length);
+      }
+    } catch {
+      // Non-blocking scheduled badge refresh
+    }
+  }, [isAuthenticated]);
 
   // Load emails for active folder or search query
   const loadEmails = useCallback(
@@ -230,6 +249,7 @@ export function EmailProvider({ children }) {
     if (isAuthenticated) {
       loadEmails(currentFolder, searchQuery);
       fetchCounts();
+      refreshScheduledCount();
     } else {
       setEmails([]);
       setCustomLabels([]);
@@ -237,10 +257,11 @@ export function EmailProvider({ children }) {
       setSelectedEmailId(null);
       setSelectedIds([]);
       setCounts(INITIAL_COUNTS);
+      setScheduledCount(0);
       setNextPageToken(null);
       prevInboxUnreadRef.current = null;
     }
-  }, [isAuthenticated, currentFolder, searchQuery, loadEmails, fetchCounts]);
+  }, [isAuthenticated, currentFolder, searchQuery, loadEmails, fetchCounts, refreshScheduledCount]);
 
   // Single Email Actions
   const toggleStar = async (id, e) => {
@@ -471,6 +492,8 @@ export function EmailProvider({ children }) {
         nextPageToken,
         loadMoreEmails,
         counts,
+        scheduledCount,
+        refreshScheduledCount,
         searchQuery,
         setSearchQuery,
         loadEmails,

@@ -18,9 +18,12 @@ export default defineConfig({
       }
     }
   },
+  worker: {
+    format: 'es'
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,
-    chunkSizeWarningLimit: 1200
+    chunkSizeWarningLimit: 5500
   }
 });

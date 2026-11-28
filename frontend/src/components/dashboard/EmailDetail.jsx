@@ -10,14 +10,17 @@ import {
   Forward,
   Paperclip,
   Download,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import { useEmails } from '../../context/EmailContext';
 import { formatFullEmailDate, formatFileSize } from '../../utils/dateFormatter';
 import SanitizedEmailBody from '../email/SanitizedEmailBody';
+import AISmartReply from '../ai/AISmartReply';
 import emailService from '../../services/emailService';
 
 export default function EmailDetail() {
+  const [smartReplyOpen, setSmartReplyOpen] = React.useState(false);
   const {
     selectedEmail,
     selectEmail,
@@ -158,6 +161,16 @@ export default function EmailDetail() {
             <Forward className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Forward</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setSmartReplyOpen((v) => !v)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors shadow-nexora-xs"
+            title="Generate AI Reply"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Generate AI Reply</span>
+          </button>
         </div>
       </div>
 
@@ -278,7 +291,23 @@ export default function EmailDetail() {
             <Forward className="w-3.5 h-3.5" />
             <span>Forward</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setSmartReplyOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium text-xs transition-colors shadow-nexora-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Generate AI Reply</span>
+          </button>
         </div>
+
+        {/* Local Browser AI Smart Reply */}
+        <AISmartReply
+          email={selectedEmail}
+          open={smartReplyOpen}
+          onClose={() => setSmartReplyOpen(false)}
+        />
       </div>
     </div>
   );

@@ -17,10 +17,13 @@ const requiredDirs = [
   'backend/services',
   'backend/utils',
   'frontend/src/components',
+  'frontend/src/components/ai',
   'frontend/src/pages',
   'frontend/src/layouts',
   'frontend/src/context',
   'frontend/src/services',
+  'frontend/src/services/ai',
+  'frontend/src/services/scheduling',
   'frontend/src/utils'
 ];
 
@@ -39,6 +42,12 @@ const requiredFiles = [
   'backend/package.json',
   'frontend/package.json',
   'frontend/vite.config.js',
+  'backend/models/ScheduledEmail.js',
+  'backend/services/schedulerService.js',
+  'backend/services/gmailSchedulingService.js',
+  'backend/routes/scheduledEmailRoutes.js',
+  'frontend/src/services/ai/webllmService.js',
+  '.github/workflows/scheduled-email-dispatcher.yml',
   'render.yaml',
   'README.md'
 ];

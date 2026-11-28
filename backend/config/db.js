@@ -40,6 +40,9 @@ export async function connectDB() {
 }
 
 export function isDbConnected() {
+  if (process.env.NODE_ENV === 'test' && mongoose.connection.readyState === 1) {
+    return true;
+  }
   return isConnected && mongoose.connection.readyState === 1;
 }
 
