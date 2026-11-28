@@ -444,7 +444,7 @@ export default function ComposeModal() {
                 title="Write or rewrite with local Nexora AI"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Write with Nexora AI</span>
+                <span>AI Write</span>
               </button>
             </div>
           </div>
@@ -461,11 +461,6 @@ export default function ComposeModal() {
 
           {schedulePanelOpen && (
             <div className="p-3 border-b border-nexora-border dark:border-nexora-border-dark max-h-72 overflow-y-auto bg-slate-50/70 dark:bg-nexora-dark-card/40 space-y-2">
-              {attachments.length > 0 && (
-                <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                  Note: Scheduled sending stores and delivers your message text/HTML only. Attachments require immediate Send.
-                </p>
-              )}
               <AISchedulePanel
                 initialDraft={{
                   to,
@@ -578,7 +573,6 @@ export default function ComposeModal() {
                     ? 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300'
                     : 'border-nexora-border dark:border-nexora-border-dark text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-nexora-dark-card'
                 }`}
-                title="Schedule email using natural language or date/time"
               >
                 <CalendarClock className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Schedule</span>

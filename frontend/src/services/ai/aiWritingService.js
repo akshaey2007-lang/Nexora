@@ -75,6 +75,33 @@ function shouldUseLocalAI(aiState) {
   return Boolean(aiState?.aiEnabled !== false && aiState?.webgpu?.supported !== false);
 }
 
+async function generateWithFallback({ aiState, promptPayload, temperature, maxTokens, onToken, fallbackFn }) {
+  if (!shouldUseLocalAI(aiState)) {
+    return {
+      result: fallbackFn(),
+      usedFallback: true,
+      fallbackReason: aiState?.aiEnabled === false ? 'AI is disabled in Settings.' : aiState?.webgpu?.reason
+    };
+  }
+
+  try {
+    const raw = await webllmManager.generate({
+      ...promptPayload,
+      temperature,
+      maxTokens,
+      preferredModelId: aiState?.selectedModelId,
+      onToken
+    });
+    return { raw, usedFallback: false };
+  } catch (err) {
+    return {
+      result: fallbackFn(),
+      usedFallback: true,
+      fallbackReason: err?.message || 'Local WebGPU model unavailable.'
+    };
+  }
+}
+
 export async function generateAssistantEmail({
   instruction,
   conversationHistory = [],
@@ -82,31 +109,20 @@ export async function generateAssistantEmail({
   aiState,
   onToken
 }) {
-  if (!shouldUseLocalAI(aiState)) {
-    const fallback = buildFallbackTemplate('email', {
-      prompt: instruction,
-      senderName
-    });
-    return {
-      ...fallback,
-      usedFallback: true,
-      fallbackReason: aiState?.aiEnabled === false ? 'AI is disabled in Settings.' : aiState?.webgpu?.reason
-    };
-  }
-
-  const prompt = buildAssistantPrompt({ instruction, conversationHistory, senderName });
-  const raw = await webllmManager.generate({
-    ...prompt,
+  const promptPayload = buildAssistantPrompt({ instruction, conversationHistory, senderName });
+  const outcome = await generateWithFallback({
+    aiState,
+    promptPayload,
     temperature: 0.55,
     maxTokens: 700,
-    preferredModelId: aiState?.selectedModelId,
-    onToken
+    onToken,
+    fallbackFn: () => buildFallbackTemplate('email', { prompt: instruction, senderName })
   });
 
-  return {
-    ...parseSubjectAndBody(raw),
-    usedFallback: false
-  };
+  if (outcome.usedFallback) {
+    return { ...outcome.result, usedFallback: true, fallbackReason: outcome.fallbackReason };
+  }
+  return { ...parseSubjectAndBody(outcome.raw), usedFallback: false };
 }
 
 export async function generateStructuredEmail({
@@ -122,22 +138,6 @@ export async function generateStructuredEmail({
   aiState,
   onToken
 }) {
-  if (!shouldUseLocalAI(aiState)) {
-    const fallback = buildFallbackTemplate('email', {
-      prompt,
-      style,
-      recipientName,
-      purpose,
-      importantDetails,
-      senderName
-    });
-    return {
-      ...fallback,
-      usedFallback: true,
-      fallbackReason: aiState?.aiEnabled === false ? 'AI is disabled in Settings.' : aiState?.webgpu?.reason
-    };
-  }
-
   const promptPayload = buildEmailWriterPrompt({
     prompt,
     style,
@@ -150,18 +150,27 @@ export async function generateStructuredEmail({
     senderName
   });
 
-  const raw = await webllmManager.generate({
-    ...promptPayload,
+  const outcome = await generateWithFallback({
+    aiState,
+    promptPayload,
     temperature: 0.5,
     maxTokens: 750,
-    preferredModelId: aiState?.selectedModelId,
-    onToken
+    onToken,
+    fallbackFn: () =>
+      buildFallbackTemplate('email', {
+        prompt,
+        style,
+        recipientName,
+        purpose,
+        importantDetails,
+        senderName
+      })
   });
 
-  return {
-    ...parseSubjectAndBody(raw, purpose || prompt),
-    usedFallback: false
-  };
+  if (outcome.usedFallback) {
+    return { ...outcome.result, usedFallback: true, fallbackReason: outcome.fallbackReason };
+  }
+  return { ...parseSubjectAndBody(outcome.raw, purpose || prompt), usedFallback: false };
 }
 
 export async function generateLetter({
@@ -174,21 +183,6 @@ export async function generateLetter({
   aiState,
   onToken
 }) {
-  if (!shouldUseLocalAI(aiState)) {
-    return {
-      letterText: buildFallbackTemplate('letter', {
-        letterType,
-        prompt,
-        recipientName,
-        recipientTitle,
-        senderName,
-        importantDetails
-      }),
-      usedFallback: true,
-      fallbackReason: aiState?.aiEnabled === false ? 'AI is disabled in Settings.' : aiState?.webgpu?.reason
-    };
-  }
-
   const promptPayload = buildLetterPrompt({
     letterType,
     prompt,
@@ -198,18 +192,31 @@ export async function generateLetter({
     importantDetails
   });
 
-  const raw = await webllmManager.generate({
-    ...promptPayload,
+  const outcome = await generateWithFallback({
+    aiState,
+    promptPayload,
     temperature: 0.45,
     maxTokens: 850,
-    preferredModelId: aiState?.selectedModelId,
-    onToken
+    onToken,
+    fallbackFn: () =>
+      buildFallbackTemplate('letter', {
+        letterType,
+        prompt,
+        recipientName,
+        recipientTitle,
+        senderName,
+        importantDetails
+      })
   });
 
-  return {
-    letterText: raw.trim(),
-    usedFallback: false
-  };
+  if (outcome.usedFallback) {
+    return {
+      letterText: outcome.result,
+      usedFallback: true,
+      fallbackReason: outcome.fallbackReason
+    };
+  }
+  return { letterText: outcome.raw.trim(), usedFallback: false };
 }
 
 export async function runWritingTool({
@@ -220,25 +227,27 @@ export async function runWritingTool({
   aiState,
   onToken
 }) {
-  if (!shouldUseLocalAI(aiState)) {
-    const result = buildFallbackTemplate('rewrite', { tool, text, subject, targetTone });
+  const promptPayload = buildWritingToolPrompt({ tool, text, subject, targetTone });
+
+  const outcome = await generateWithFallback({
+    aiState,
+    promptPayload,
+    temperature: tool === 'fix_grammar' ? 0.2 : 0.45,
+    maxTokens: tool === 'generate_subject' ? 120 : 650,
+    onToken,
+    fallbackFn: () => buildFallbackTemplate('rewrite', { tool, text, subject, targetTone })
+  });
+
+  if (outcome.usedFallback) {
     return {
-      text: result,
-      suggestions: tool === 'generate_subject' ? [result] : undefined,
-      usedFallback: true
+      text: outcome.result,
+      suggestions: tool === 'generate_subject' ? [outcome.result] : undefined,
+      usedFallback: true,
+      fallbackReason: outcome.fallbackReason
     };
   }
 
-  const promptPayload = buildWritingToolPrompt({ tool, text, subject, targetTone });
-  const raw = await webllmManager.generate({
-    ...promptPayload,
-    temperature: tool === 'fix_grammar' ? 0.2 : 0.45,
-    maxTokens: tool === 'generate_subject' ? 120 : 650,
-    preferredModelId: aiState?.selectedModelId,
-    onToken
-  });
-
-  const cleaned = raw.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
+  const cleaned = outcome.raw.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
 
   if (tool === 'generate_subject') {
     const suggestions = cleaned
@@ -253,10 +262,7 @@ export async function runWritingTool({
     };
   }
 
-  return {
-    text: cleaned,
-    usedFallback: false
-  };
+  return { text: cleaned, usedFallback: false };
 }
 
 export async function generateSmartReply({
@@ -266,31 +272,33 @@ export async function generateSmartReply({
   aiState,
   onToken
 }) {
-  if (!shouldUseLocalAI(aiState)) {
+  const replySubject = incomingEmail?.subject?.startsWith('Re:')
+    ? incomingEmail.subject
+    : `Re: ${incomingEmail?.subject || ''}`;
+
+  const promptPayload = buildSmartReplyPrompt({ incomingEmail, style, senderName });
+
+  const outcome = await generateWithFallback({
+    aiState,
+    promptPayload,
+    temperature: 0.45,
+    maxTokens: style === 'Short' ? 220 : 500,
+    onToken,
+    fallbackFn: () => buildFallbackTemplate('smart_reply', { incomingEmail, style, senderName })
+  });
+
+  if (outcome.usedFallback) {
     return {
-      subject: incomingEmail?.subject?.startsWith('Re:')
-        ? incomingEmail.subject
-        : `Re: ${incomingEmail?.subject || ''}`,
-      body: buildFallbackTemplate('smart_reply', { incomingEmail, style, senderName }),
+      subject: replySubject,
+      body: outcome.result,
       usedFallback: true,
-      fallbackReason: aiState?.aiEnabled === false ? 'AI is disabled in Settings.' : aiState?.webgpu?.reason
+      fallbackReason: outcome.fallbackReason
     };
   }
 
-  const promptPayload = buildSmartReplyPrompt({ incomingEmail, style, senderName });
-  const raw = await webllmManager.generate({
-    ...promptPayload,
-    temperature: 0.45,
-    maxTokens: style === 'Short' ? 220 : 500,
-    preferredModelId: aiState?.selectedModelId,
-    onToken
-  });
-
   return {
-    subject: incomingEmail?.subject?.startsWith('Re:')
-      ? incomingEmail.subject
-      : `Re: ${incomingEmail?.subject || ''}`,
-    body: raw.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim(),
+    subject: replySubject,
+    body: outcome.raw.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim(),
     usedFallback: false
   };
 }

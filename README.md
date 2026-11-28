@@ -10,12 +10,11 @@
 ## Key Features
 
 ### 1. Free On-Device NEXORA AI (`WebLLM` + `WebGPU`)
-- **Conversational AI Assistant (`/ai`)**: Describe any email in plain English and generate an editable `Subject`, greeting, body, closing, and signature placeholder — always requiring user approval before sending.
-- **AI Email Writer**: 7 writing styles (`Professional`, `Formal`, `Friendly`, `Casual`, `Persuasive`, `Academic`, `Concise`), 10 preset prompts, recipient/role/details fields, and editable outputs (`Regenerate`, `Copy`, `Insert into Compose`, `Edit`, `Discard`).
-- **AI Letter Generator**: 12 letter categories (Job, Internship, Resignation, Leave, Permission, Complaint, Apology, Recommendation, Business, College, Request, Thank-you) using safe placeholders (never fabricating personal data) with `Copy Letter`, `Download as TXT`, and `Use in Email`.
-- **AI Compose Toolbar (`Write with Nexora AI`)**: 8 writing tools inside Compose — *Improve writing*, *Fix grammar*, *Make professional*, *Make concise / Shorten*, *Expand*, *Change tone* (6 tones), *Generate subject*, and *Continue writing* — with side-by-side Original vs. AI suggestion previews requiring explicit `Accept` or `Reject`.
-- **AI Smart Reply (`Generate AI Reply`)**: Contextual replies inside the email reading pane (`Professional`, `Friendly`, `Short`, `Detailed`), isolating strictly the active opened email with prompt-injection boundaries (`<UNTRUSTED_EMAIL_DATA>`).
-- **Graceful Fallback**: When WebGPU is unavailable or AI is disabled in Settings, Nexora automatically switches to structured offline non-AI templates without any paid fallback.
+- **Togglable AI Sidebar (`AISidebar.jsx`)**: Accessible from the header AI toggle without leaving your inbox, offering `Write`, `Letter`, and `Schedule` tabs.
+- **Email Writer & Letter Generator**: 7 writing styles and 12 formal letter categories using safe placeholders without fabricating personal details.
+- **Compose AI Toolbar (`AI Write`)**: 8 writing tools inside Compose (*Improve*, *Grammar*, *Professional*, *Shorten*, *Expand*, *Continue*, *Subject*, and *Tone*) with Original vs. Suggested comparison requiring explicit approval.
+- **Smart Reply (`AI Reply`)**: Contextual replies (`Professional`, `Friendly`, `Short`, `Detailed`) inside the email reading pane, isolated strictly to the active opened email.
+- **Persistent Browser Cache & Fallback**: Downloaded model weights are stored in the browser Cache API across tab closes/revisits (reloaded from local cache into GPU memory without re-downloading), and unsupported devices fall back gracefully to offline templates.
 
 ### 2. Natural-Language Email Scheduling (`/scheduled`)
 - **Natural-Language Parser + Explicit Confirmation**: Interpret phrases like `"tomorrow at 9 AM"`, `"Monday at 4 PM"`, `"December 5 at 10:30 AM"`, `"next Friday afternoon"`, or `"in 2 hours"`, paired with deterministic timezone conversion (`Intl.DateTimeFormat`), future-date enforcement, and a confirmation screen before queuing.

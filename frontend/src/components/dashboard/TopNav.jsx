@@ -9,16 +9,19 @@ import {
   Shield,
   X,
   UserPlus,
-  Menu
+  Menu,
+  Sparkles
 } from 'lucide-react';
 import { useEmails } from '../../context/EmailContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAI } from '../../context/AIContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 export default function TopNav({ onOpenMobileMenu }) {
   const { searchQuery, setSearchQuery, loadEmails, loadingEmails, selectEmail } = useEmails();
   const { user, loginWithGoogle, logout, disconnect } = useAuth();
+  const { isAISidebarOpen, toggleAISidebar } = useAI();
   const { isDark, toggleTheme } = useTheme();
 
   const [inputVal, setInputVal] = useState(searchQuery);
@@ -112,6 +115,19 @@ export default function TopNav({ onOpenMobileMenu }) {
           aria-label="Toggle theme"
         >
           {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+        </button>
+
+        <button
+          onClick={toggleAISidebar}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            isAISidebarOpen
+              ? 'bg-violet-600 text-white'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-nexora-dark-card'
+          }`}
+          aria-label="Toggle Nexora AI sidebar"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="hidden sm:inline">AI</span>
         </button>
 
         <Link

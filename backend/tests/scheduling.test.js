@@ -28,6 +28,7 @@ import {
   listScheduledEmails,
   updateScheduledEmail
 } from '../controllers/scheduledEmailController.js';
+import { clearMemoryQueueForTests } from '../services/schedulerStore.js';
 
 function createMockRes() {
   return {
@@ -427,3 +428,87 @@ test(
     void validateRecipientList;
   })
 );
+
+test('Standalone/session fallback scheduler supports full CRUD, isolation, and delivery without MongoDB', async () => {
+  clearMemoryQueueForTests();
+  const prevKey = process.env.TOKEN_ENCRYPTION_KEY;
+  const prevClientId = process.env.GOOGLE_CLIENT_ID;
+  const prevSecret = process.env.GOOGLE_CLIENT_SECRET;
+  process.env.TOKEN_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  process.env.GOOGLE_CLIENT_ID = 'test-client.apps.googleusercontent.com';
+  process.env.GOOGLE_CLIENT_SECRET = 'test-secret';
+
+  const origSendMessage = GmailService.sendMessage;
+  let sentCount = 0;
+  GmailService.sendMessage = async () => {
+    sentCount += 1;
+    return { id: 'session-sent-1' };
+  };
+
+  const sessionUserA = {
+    googleId: 'g-user-a',
+    email: 'usera@gmail.com',
+    isConnected: true,
+    encryptedRefreshToken: encryptToken('refresh-a')
+  };
+  const sessionUserB = {
+    googleId: 'g-user-b',
+    email: 'userb@gmail.com',
+    isConnected: true,
+    encryptedRefreshToken: encryptToken('refresh-b')
+  };
+
+  try {
+    const createRes = createMockRes();
+    await createScheduledEmail(
+      {
+        user: sessionUserA,
+        body: {
+          recipient: 'friend@example.com',
+          subject: 'Session Scheduled',
+          body: '<p>Hi</p>',
+          scheduledAt: new Date(Date.now() + 200).toISOString(),
+          timezone: 'UTC'
+        }
+      },
+      createRes,
+      () => {}
+    );
+
+    assert.equal(createRes.statusCode, 201);
+    assert.equal(createRes.payload.storageMode, 'session');
+    const createdId = createRes.payload.scheduledEmail.id;
+
+    // User B cannot see or edit User A's session-scheduled email
+    const listB = createMockRes();
+    await listScheduledEmails({ user: sessionUserB, query: {} }, listB, () => {});
+    assert.equal(listB.payload.scheduledEmails.length, 0);
+
+    const editB = createMockRes();
+    await updateScheduledEmail(
+      { user: sessionUserB, params: { id: createdId }, body: { subject: 'Hack' } },
+      editB,
+      () => {}
+    );
+    assert.equal(editB.statusCode, 404);
+
+    // Wait briefly for due time and process via in-memory dispatcher
+    await new Promise((r) => setTimeout(r, 250));
+    const summary = await processDueScheduledEmails({ user: sessionUserA });
+    assert.equal(summary.sent, 1);
+    assert.equal(sentCount, 1);
+
+    const listA = createMockRes();
+    await listScheduledEmails({ user: sessionUserA, query: {} }, listA, () => {});
+    assert.equal(listA.payload.scheduledEmails[0].status, 'Sent');
+  } finally {
+    clearMemoryQueueForTests();
+    GmailService.sendMessage = origSendMessage;
+    if (prevKey === undefined) delete process.env.TOKEN_ENCRYPTION_KEY;
+    else process.env.TOKEN_ENCRYPTION_KEY = prevKey;
+    if (prevClientId === undefined) delete process.env.GOOGLE_CLIENT_ID;
+    else process.env.GOOGLE_CLIENT_ID = prevClientId;
+    if (prevSecret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
+    else process.env.GOOGLE_CLIENT_SECRET = prevSecret;
+  }
+});

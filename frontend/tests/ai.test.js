@@ -274,3 +274,22 @@ test('Frontend natural-language schedule parser handles dates, timezones, and pa
   assert.equal(interpreted.extracted.recipientEmail, 'alice@example.com');
   assert.equal(interpreted.schedule.success, true);
 });
+
+test('WebLLM runtime failure recovers seamlessly via offline template fallback', async () => {
+  const brokenAiState = {
+    aiEnabled: true,
+    webgpu: { supported: true, shaderF16: false, reason: '' },
+    selectedModelId: DEFAULT_AI_MODEL_ID
+  };
+
+  // In Node environment navigator.gpu does not exist, so initialize rejects; service catches cleanly
+  const res = await generateStructuredEmail({
+    prompt: 'Write follow-up email',
+    style: 'Professional',
+    senderName: 'Sam',
+    aiState: brokenAiState
+  });
+  assert.equal(res.usedFallback, true);
+  assert.ok(res.subject.length > 0);
+  assert.match(res.body, /Sam/);
+});

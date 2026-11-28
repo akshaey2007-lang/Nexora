@@ -6,8 +6,9 @@ import {
   isPermanentAuthFailure,
   isRetryableGmailError
 } from './gmailSchedulingService.js';
+import { getDueMemoryRecords, getOwnerIdentity } from './schedulerStore.js';
 
-const LOCK_TTL_MS = 5 * 60 * 1000; // Recover abandoned Processing locks after 5 minutes
+const LOCK_TTL_MS = 5 * 60 * 1000;
 const RETRY_DELAYS_MINUTES = [2, 10, 30];
 
 let activeBatchPromise = null;
@@ -18,10 +19,6 @@ function computeNextRetryAt(nextRetryCount) {
   return new Date(Date.now() + RETRY_DELAYS_MINUTES[idx] * 60 * 1000);
 }
 
-/**
- * Recovers rows stuck in 'Processing' if a previous worker crashed/slept before finishing.
- * Never unlocks rows that already recorded a gmailMessageId (idempotency guard).
- */
 async function recoverStaleLocks(now = new Date()) {
   const staleCutoff = new Date(now.getTime() - LOCK_TTL_MS);
 
@@ -42,24 +39,78 @@ async function recoverStaleLocks(now = new Date()) {
   );
 }
 
+async function processMemoryQueue({ limit = 20, user = null, workerId = 'memory-worker' } = {}) {
+  const summary = { processed: 0, sent: 0, retried: 0, failed: 0, details: [] };
+  const ownerKey = user ? getOwnerIdentity(user)?.ownerKey : null;
+  const dueDocs = getDueMemoryRecords({ ownerKey, now: new Date(), limit });
+
+  for (const doc of dueDocs) {
+    if (doc.status !== 'Scheduled' || doc.gmailMessageId) continue;
+    doc.status = 'Processing';
+    doc.lockedAt = new Date();
+    doc.lockedBy = workerId;
+    summary.processed += 1;
+
+    try {
+      const sendResult = await deliverScheduledEmail(doc);
+      doc.status = 'Sent';
+      doc.gmailMessageId = sendResult?.id || `sent-${doc.id}`;
+      doc.sentAt = new Date();
+      doc.lockedAt = null;
+      doc.lockedBy = null;
+      doc.errorDetails = null;
+      doc.updatedAt = new Date();
+      summary.sent += 1;
+      summary.details.push({ id: doc.id, status: 'Sent' });
+      logger.success(`Session-queued scheduled email ${doc.id} delivered via Gmail API.`);
+    } catch (err) {
+      const nextRetryCount = (doc.retryCount || 0) + 1;
+      const permanentAuth = isPermanentAuthFailure(err);
+      const canRetry = !permanentAuth && isRetryableGmailError(err) && nextRetryCount < (doc.maxRetries || 3);
+      const cleanError = String(err.message || 'Unknown send failure').slice(0, 500);
+
+      doc.retryCount = nextRetryCount;
+      doc.lockedAt = null;
+      doc.lockedBy = null;
+      doc.updatedAt = new Date();
+
+      if (canRetry) {
+        doc.status = 'Scheduled';
+        doc.nextRetryAt = computeNextRetryAt(nextRetryCount);
+        doc.errorDetails = `Retry ${nextRetryCount}/${doc.maxRetries || 3}: ${cleanError}`;
+        summary.retried += 1;
+      } else {
+        doc.status = 'Failed';
+        doc.errorDetails = permanentAuth ? `Gmail authentication required: ${cleanError}` : cleanError;
+        summary.failed += 1;
+      }
+    }
+  }
+
+  return summary;
+}
+
 /**
  * Atomically claims and processes up to `limit` due scheduled emails.
- * Prevents duplicate sending across overlapping requests or workers.
+ * Supports both persistent MongoDB mode and standalone/session fallback mode.
  */
 export async function processDueScheduledEmails({
   limit = 20,
   userId = null,
+  user = null,
   workerId = `worker-${process.pid}`
 } = {}) {
-  if (!isDbConnected()) {
-    return { skipped: true, reason: 'database_disconnected', processed: 0, sent: 0, retried: 0, failed: 0 };
-  }
-
   if (activeBatchPromise) {
     return await activeBatchPromise;
   }
 
   activeBatchPromise = (async () => {
+    const dbReady = isDbConnected();
+
+    if (!dbReady) {
+      return await processMemoryQueue({ limit, user, workerId });
+    }
+
     const summary = {
       processed: 0,
       sent: 0,
@@ -127,7 +178,6 @@ export async function processDueScheduledEmails({
           const nextRetryCount = (claimed.retryCount || 0) + 1;
           const permanentAuth = isPermanentAuthFailure(err);
           const canRetry = !permanentAuth && isRetryableGmailError(err) && nextRetryCount < (claimed.maxRetries || 3);
-
           const cleanError = String(err.message || 'Unknown send failure').slice(0, 500);
 
           if (canRetry) {
@@ -163,6 +213,13 @@ export async function processDueScheduledEmails({
         }
       }
 
+      const memSummary = await processMemoryQueue({ limit: 10, user, workerId: `${workerId}-mem` });
+      summary.processed += memSummary.processed;
+      summary.sent += memSummary.sent;
+      summary.retried += memSummary.retried;
+      summary.failed += memSummary.failed;
+      summary.details.push(...memSummary.details);
+
       return summary;
     } finally {
       activeBatchPromise = null;
@@ -172,12 +229,7 @@ export async function processDueScheduledEmails({
   return await activeBatchPromise;
 }
 
-/**
- * Starts a non-blocking periodic check while the server is awake.
- * Note: Free hosting (Render Free) sleeps on inactivity, so GitHub Actions cron triggers
- * complement this timer by waking the server periodically.
- */
-export function startInProcessScheduler({ intervalMs = 60000 } = {}) {
+export function startInProcessScheduler({ intervalMs = 15000 } = {}) {
   if (process.env.ENABLE_IN_PROCESS_SCHEDULER === 'false' || process.env.NODE_ENV === 'test') {
     return null;
   }

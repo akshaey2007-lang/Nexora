@@ -165,11 +165,11 @@ export default function EmailDetail() {
           <button
             type="button"
             onClick={() => setSmartReplyOpen((v) => !v)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors shadow-nexora-xs"
-            title="Generate AI Reply"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-nexora-border dark:border-nexora-border-dark bg-white dark:bg-nexora-dark-card text-xs font-medium text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-500/15 transition-colors"
+            aria-label="AI Reply"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Generate AI Reply</span>
+            <span className="hidden sm:inline">AI Reply</span>
           </button>
         </div>
       </div>
@@ -295,10 +295,10 @@ export default function EmailDetail() {
           <button
             type="button"
             onClick={() => setSmartReplyOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium text-xs transition-colors shadow-nexora-xs"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-violet-200 dark:border-violet-500/30 bg-violet-50/60 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 font-medium text-xs hover:bg-violet-100 dark:hover:bg-violet-500/20 transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Generate AI Reply</span>
+            <span>AI Reply</span>
           </button>
         </div>
 

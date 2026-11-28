@@ -76,7 +76,10 @@ export async function deliverScheduledEmail(scheduledDoc) {
     return { alreadySent: true, id: scheduledDoc.gmailMessageId };
   }
 
-  const user = await User.findById(scheduledDoc.userId);
+  let user = scheduledDoc._authUserSnapshot || null;
+  if (!user && scheduledDoc.userId) {
+    user = await User.findById(scheduledDoc.userId);
+  }
   if (!user || !user.isConnected) {
     const authErr = new Error('User Gmail account not found or disconnected. Please sign in again.');
     authErr.status = 401;

@@ -14,7 +14,6 @@ import {
   ChevronRight,
   Tag,
   X,
-  Sparkles,
   CalendarClock
 } from 'lucide-react';
 import { useEmails } from '../../context/EmailContext';
@@ -152,63 +151,33 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             );
           })}
 
-          {/* Scheduled Emails Folder & Nexora AI Assistant */}
-          <div className="pt-2 mt-2 border-t border-nexora-border dark:border-nexora-border-dark space-y-0.5">
-            <Link
-              to="/scheduled"
-              onClick={() => setMobileOpen && setMobileOpen(false)}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] transition-colors ${
-                location.pathname === '/scheduled'
-                  ? 'bg-indigo-50 text-nexora-electric dark:bg-indigo-500/15 dark:text-indigo-400 font-semibold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-nexora-dark-card hover:text-slate-900 dark:hover:text-white font-medium'
-              }`}
-              title={isRail ? 'Scheduled' : undefined}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <CalendarClock
-                  className={`w-4 h-4 flex-shrink-0 ${
-                    location.pathname === '/scheduled'
-                      ? 'text-nexora-electric dark:text-indigo-400'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}
-                />
-                {!isRail && <span className="truncate">Scheduled</span>}
-              </div>
+          {/* Scheduled Emails */}
+          <Link
+            to="/scheduled"
+            onClick={() => setMobileOpen && setMobileOpen(false)}
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] transition-colors ${
+              location.pathname === '/scheduled'
+                ? 'bg-indigo-50 text-nexora-electric dark:bg-indigo-500/15 dark:text-indigo-400 font-semibold'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-nexora-dark-card hover:text-slate-900 dark:hover:text-white font-medium'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <CalendarClock
+                className={`w-4 h-4 flex-shrink-0 ${
+                  location.pathname === '/scheduled'
+                    ? 'text-nexora-electric dark:text-indigo-400'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`}
+              />
+              {!isRail && <span className="truncate">Scheduled</span>}
+            </div>
 
-              {!isRail && scheduledCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[11px] rounded-md font-semibold tabular-nums text-nexora-electric dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-500/20">
-                  {scheduledCount}
-                </span>
-              )}
-            </Link>
-
-            <Link
-              to="/ai"
-              onClick={() => setMobileOpen && setMobileOpen(false)}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] transition-colors ${
-                location.pathname === '/ai'
-                  ? 'bg-violet-50 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300 font-semibold'
-                  : 'text-slate-700 dark:text-slate-200 hover:bg-violet-50/60 dark:hover:bg-violet-500/10 font-medium'
-              }`}
-              title={isRail ? 'AI Assistant' : undefined}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Sparkles
-                  className={`w-4 h-4 flex-shrink-0 ${
-                    location.pathname === '/ai'
-                      ? 'text-violet-600 dark:text-violet-400'
-                      : 'text-violet-500 dark:text-violet-400'
-                  }`}
-                />
-                {!isRail && <span className="truncate">AI Assistant</span>}
-              </div>
-              {!isRail && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
-                  AI
-                </span>
-              )}
-            </Link>
-          </div>
+            {!isRail && scheduledCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[11px] rounded-md font-semibold tabular-nums text-nexora-electric dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-500/20">
+                {scheduledCount}
+              </span>
+            )}
+          </Link>
 
           {/* Real Custom Gmail Labels (only shown if user has custom labels in Gmail) */}
           {!isRail && customLabels && customLabels.length > 0 && (

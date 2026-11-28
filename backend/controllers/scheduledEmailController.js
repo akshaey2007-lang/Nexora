@@ -1,9 +1,15 @@
 import mongoose from 'mongoose';
-import ScheduledEmail, { SCHEDULED_STATUSES } from '../models/ScheduledEmail.js';
-import { isDbConnected } from '../config/db.js';
 import { GmailService } from '../services/gmailService.js';
 import { getAuthorizedClient } from '../services/tokenService.js';
 import { processDueScheduledEmails } from '../services/schedulerService.js';
+import {
+  cancelScheduledRecord,
+  createScheduledRecord,
+  deleteScheduledRecord,
+  findAndUpdateScheduledRecord,
+  getOwnerIdentity,
+  listScheduledForUser
+} from '../services/schedulerStore.js';
 import {
   parseNaturalScheduleText,
   resolveScheduledTimestamp,
@@ -18,11 +24,6 @@ function stripDangerousTags(html = '') {
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
     .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, '')
     .replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-}
-
-function getAuthenticatedUserId(req) {
-  const uid = req.user?._id ? String(req.user._id) : '';
-  return mongoose.Types.ObjectId.isValid(uid) ? new mongoose.Types.ObjectId(uid) : null;
 }
 
 /**
@@ -62,53 +63,22 @@ export async function parseScheduleInstruction(req, res) {
  */
 export async function listScheduledEmails(req, res, next) {
   try {
-    if (!isDbConnected()) {
-      return res.status(503).json({
-        success: false,
-        message: 'MongoDB database must be connected to store and view scheduled emails.'
-      });
-    }
-
-    const userId = getAuthenticatedUserId(req);
-    if (!userId) {
+    const owner = getOwnerIdentity(req.user);
+    if (!owner) {
       return res.status(401).json({
         success: false,
-        message: 'Authenticated MongoDB user profile is required for scheduling.'
+        message: 'Authentication required for scheduling.'
       });
     }
 
     const { status } = req.query;
-    const filter = { userId };
-    if (status && SCHEDULED_STATUSES.includes(status)) {
-      filter.status = status;
-    }
-
-    const items = await ScheduledEmail.find(filter)
-      .sort({ scheduledAt: 1, createdAt: -1 })
-      .limit(100);
-
-    const summaryAgg = await ScheduledEmail.aggregate([
-      { $match: { userId } },
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
-
-    const summary = {
-      Scheduled: 0,
-      Processing: 0,
-      Sent: 0,
-      Failed: 0,
-      Cancelled: 0
-    };
-    for (const row of summaryAgg) {
-      if (row._id && summary[row._id] !== undefined) {
-        summary[row._id] = row.count;
-      }
-    }
+    const { items, summary, storageMode } = await listScheduledForUser(req.user, status);
 
     return res.json({
       success: true,
-      scheduledEmails: items.map((doc) => doc.toSafeObject()),
-      summary
+      scheduledEmails: items,
+      summary,
+      storageMode
     });
   } catch (error) {
     return next(error);
@@ -116,19 +86,12 @@ export async function listScheduledEmails(req, res, next) {
 }
 
 /**
- * Creates a persistent ScheduledEmail task after explicit user confirmation.
+ * Creates a ScheduledEmail task after explicit user confirmation.
  */
 export async function createScheduledEmail(req, res, next) {
   try {
-    if (!isDbConnected()) {
-      return res.status(503).json({
-        success: false,
-        message: 'Scheduled sending requires a connected MongoDB Atlas database.'
-      });
-    }
-
-    const userId = getAuthenticatedUserId(req);
-    if (!userId) {
+    const owner = getOwnerIdentity(req.user);
+    if (!owner) {
       return res.status(401).json({
         success: false,
         message: 'Authenticated user account is required to schedule emails.'
@@ -197,8 +160,7 @@ export async function createScheduledEmail(req, res, next) {
       }
     }
 
-    const created = await ScheduledEmail.create({
-      userId,
+    const { record, storageMode } = await createScheduledRecord(req.user, {
       recipient: recipientCheck.normalized,
       cc: ccCheck.normalized,
       bcc: bccCheck.normalized,
@@ -207,14 +169,14 @@ export async function createScheduledEmail(req, res, next) {
       scheduledAt: timeCheck.scheduledAt,
       timezone: timeCheck.timezone,
       naturalLanguageInput: sanitizeHeaderValue(naturalLanguageInput).slice(0, 500),
-      status: 'Scheduled',
       gmailDraftId
     });
 
     return res.status(201).json({
       success: true,
-      message: `Email scheduled for ${timeCheck.formatted.dateLabel} at ${timeCheck.formatted.timeLabel} (${timeCheck.timezone}).`,
-      scheduledEmail: created.toSafeObject()
+      message: `Scheduled for ${timeCheck.formatted.dateLabel} at ${timeCheck.formatted.timeLabel} (${timeCheck.timezone}).`,
+      scheduledEmail: record,
+      storageMode
     });
   } catch (error) {
     return next(error);
@@ -226,28 +188,7 @@ export async function createScheduledEmail(req, res, next) {
  */
 export async function updateScheduledEmail(req, res, next) {
   try {
-    if (!isDbConnected()) {
-      return res.status(503).json({ success: false, message: 'Database unavailable.' });
-    }
-
-    const userId = getAuthenticatedUserId(req);
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: 'Invalid scheduled email ID.' });
-    }
-
-    const existing = await ScheduledEmail.findOne({ _id: id, userId });
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'Scheduled email not found.' });
-    }
-
-    if (existing.status === 'Processing' || existing.status === 'Sent' || existing.status === 'Cancelled') {
-      return res.status(409).json({
-        success: false,
-        message: `Cannot edit a scheduled email that is already ${existing.status}.`
-      });
-    }
-
     const {
       to,
       recipient,
@@ -261,95 +202,89 @@ export async function updateScheduledEmail(req, res, next) {
       timezone
     } = req.body || {};
 
-    const recipientVal = recipient !== undefined ? recipient : to;
-    if (recipientVal !== undefined) {
-      const recipientCheck = validateRecipientList(recipientVal, { required: true });
-      if (!recipientCheck.valid) {
-        return res.status(400).json({ success: false, message: recipientCheck.message });
+    const result = await findAndUpdateScheduledRecord(req.user, id, async (existing) => {
+      const recipientVal = recipient !== undefined ? recipient : to;
+      if (recipientVal !== undefined) {
+        const recipientCheck = validateRecipientList(recipientVal, { required: true });
+        if (!recipientCheck.valid) return { error: recipientCheck.message, status: 400 };
+        existing.recipient = recipientCheck.normalized;
       }
-      existing.recipient = recipientCheck.normalized;
-    }
 
-    if (cc !== undefined) {
-      const ccCheck = validateRecipientList(cc, { required: false });
-      if (!ccCheck.valid) {
-        return res.status(400).json({ success: false, message: ccCheck.message });
+      if (cc !== undefined) {
+        const ccCheck = validateRecipientList(cc, { required: false });
+        if (!ccCheck.valid) return { error: ccCheck.message, status: 400 };
+        existing.cc = ccCheck.normalized;
       }
-      existing.cc = ccCheck.normalized;
-    }
 
-    if (bcc !== undefined) {
-      const bccCheck = validateRecipientList(bcc, { required: false });
-      if (!bccCheck.valid) {
-        return res.status(400).json({ success: false, message: bccCheck.message });
+      if (bcc !== undefined) {
+        const bccCheck = validateRecipientList(bcc, { required: false });
+        if (!bccCheck.valid) return { error: bccCheck.message, status: 400 };
+        existing.bcc = bccCheck.normalized;
       }
-      existing.bcc = bccCheck.normalized;
-    }
 
-    if (subject !== undefined) {
-      existing.subject = sanitizeHeaderValue(subject, '(No Subject)').slice(0, 500);
-    }
-
-    if (body !== undefined) {
-      existing.body = stripDangerousTags(body);
-    }
-
-    const tzToUse = timezone || existing.timezone || 'UTC';
-    if (scheduledAt || (localDate && localTime)) {
-      const timeCheck = resolveScheduledTimestamp({
-        scheduledAt,
-        localDate,
-        localTime,
-        timezone: tzToUse
-      });
-      if (!timeCheck.valid) {
-        return res.status(400).json({ success: false, message: timeCheck.message });
+      if (subject !== undefined) {
+        existing.subject = sanitizeHeaderValue(subject, '(No Subject)').slice(0, 500);
       }
-      existing.scheduledAt = timeCheck.scheduledAt;
-      existing.timezone = timeCheck.timezone;
-    } else if (timezone) {
-      const tzCheck = resolveScheduledTimestamp({
-        scheduledAt: existing.scheduledAt,
-        timezone
-      });
-      if (!tzCheck.valid) {
-        return res.status(400).json({ success: false, message: tzCheck.message });
+
+      if (body !== undefined) {
+        existing.body = stripDangerousTags(body);
       }
-      existing.timezone = tzCheck.timezone;
+
+      const tzToUse = timezone || existing.timezone || 'UTC';
+      if (scheduledAt || (localDate && localTime)) {
+        const timeCheck = resolveScheduledTimestamp({
+          scheduledAt,
+          localDate,
+          localTime,
+          timezone: tzToUse
+        });
+        if (!timeCheck.valid) return { error: timeCheck.message, status: 400 };
+        existing.scheduledAt = timeCheck.scheduledAt;
+        existing.timezone = timeCheck.timezone;
+      } else if (timezone) {
+        const tzCheck = resolveScheduledTimestamp({
+          scheduledAt: existing.scheduledAt,
+          timezone
+        });
+        if (!tzCheck.valid) return { error: tzCheck.message, status: 400 };
+        existing.timezone = tzCheck.timezone;
+      }
+
+      existing.status = 'Scheduled';
+      existing.retryCount = 0;
+      existing.nextRetryAt = null;
+      existing.errorDetails = null;
+      existing.lockedAt = null;
+      existing.lockedBy = null;
+      return null;
+    });
+
+    if (result.error) {
+      return res.status(result.status || 400).json({ success: false, message: result.error });
     }
 
-    // Re-arm failed items safely when edited/rescheduled
-    existing.status = 'Scheduled';
-    existing.retryCount = 0;
-    existing.nextRetryAt = null;
-    existing.errorDetails = null;
-    existing.lockedAt = null;
-    existing.lockedBy = null;
-
-    await existing.save();
-
-    if (existing.gmailDraftId) {
+    if (result.raw?.gmailDraftId) {
       try {
         const auth = await getAuthorizedClient(req.user);
-        await GmailService.updateDraft(auth, existing.gmailDraftId, {
+        await GmailService.updateDraft(auth, result.raw.gmailDraftId, {
           from: req.user.email,
-          to: existing.recipient,
-          cc: existing.cc || undefined,
-          bcc: existing.bcc || undefined,
-          subject: existing.subject,
-          body: existing.body
+          to: result.raw.recipient,
+          cc: result.raw.cc || undefined,
+          bcc: result.raw.bcc || undefined,
+          subject: result.raw.subject,
+          body: result.raw.body
         });
       } catch {
-        // Non-fatal draft sync update
+        // Non-fatal draft sync
       }
     }
 
-    const formatted = formatScheduledDateTime(existing.scheduledAt, existing.timezone);
-
+    const formatted = formatScheduledDateTime(result.record.scheduledAt, result.record.timezone);
     return res.json({
       success: true,
-      message: `Updated schedule for ${formatted.dateLabel} at ${formatted.timeLabel}.`,
-      scheduledEmail: existing.toSafeObject()
+      message: `Updated for ${formatted.dateLabel} at ${formatted.timeLabel}.`,
+      scheduledEmail: result.record,
+      storageMode: result.storageMode
     });
   } catch (error) {
     return next(error);
@@ -361,49 +296,16 @@ export async function updateScheduledEmail(req, res, next) {
  */
 export async function cancelScheduledEmail(req, res, next) {
   try {
-    if (!isDbConnected()) {
-      return res.status(503).json({ success: false, message: 'Database unavailable.' });
-    }
-
-    const userId = getAuthenticatedUserId(req);
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: 'Invalid scheduled email ID.' });
-    }
-
-    const updated = await ScheduledEmail.findOneAndUpdate(
-      {
-        _id: id,
-        userId,
-        status: { $in: ['Scheduled', 'Failed'] }
-      },
-      {
-        $set: {
-          status: 'Cancelled',
-          nextRetryAt: null,
-          lockedAt: null,
-          lockedBy: null,
-          errorDetails: 'Cancelled by user before sending.'
-        }
-      },
-      { new: true }
-    );
-
-    if (!updated) {
-      const existing = await ScheduledEmail.findOne({ _id: id, userId });
-      if (!existing) {
-        return res.status(404).json({ success: false, message: 'Scheduled email not found.' });
-      }
-      return res.status(409).json({
-        success: false,
-        message: `Cannot cancel email with status "${existing.status}".`
-      });
+    const result = await cancelScheduledRecord(req.user, req.params.id);
+    if (result.error) {
+      return res.status(result.status || 400).json({ success: false, message: result.error });
     }
 
     return res.json({
       success: true,
-      message: 'Scheduled email cancelled and will not be sent.',
-      scheduledEmail: updated.toSafeObject()
+      message: 'Scheduled email cancelled.',
+      scheduledEmail: result.record,
+      storageMode: result.storageMode
     });
   } catch (error) {
     return next(error);
@@ -411,41 +313,20 @@ export async function cancelScheduledEmail(req, res, next) {
 }
 
 /**
- * Deletes a non-processing scheduled email entry (e.g., Cancelled, Sent, Failed, or Scheduled).
+ * Deletes a non-processing scheduled email entry.
  */
 export async function deleteScheduledEmail(req, res, next) {
   try {
-    if (!isDbConnected()) {
-      return res.status(503).json({ success: false, message: 'Database unavailable.' });
-    }
-
-    const userId = getAuthenticatedUserId(req);
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: 'Invalid scheduled email ID.' });
+    const result = await deleteScheduledRecord(req.user, id);
+    if (result.error) {
+      return res.status(result.status || 400).json({ success: false, message: result.error });
     }
 
-    const deleted = await ScheduledEmail.findOneAndDelete({
-      _id: id,
-      userId,
-      status: { $ne: 'Processing' }
-    });
-
-    if (!deleted) {
-      const existing = await ScheduledEmail.findOne({ _id: id, userId });
-      if (!existing) {
-        return res.status(404).json({ success: false, message: 'Scheduled email not found.' });
-      }
-      return res.status(409).json({
-        success: false,
-        message: 'Cannot delete a message while it is actively being processed.'
-      });
-    }
-
-    if (deleted.gmailDraftId && deleted.status !== 'Sent') {
+    if (result.deleted?.gmailDraftId && result.deleted.status !== 'Sent') {
       try {
         const auth = await getAuthorizedClient(req.user);
-        await GmailService.deleteDraft(auth, deleted.gmailDraftId);
+        await GmailService.deleteDraft(auth, result.deleted.gmailDraftId);
       } catch {
         // Non-fatal cleanup
       }
@@ -453,7 +334,7 @@ export async function deleteScheduledEmail(req, res, next) {
 
     return res.json({
       success: true,
-      message: 'Scheduled entry deleted.',
+      message: 'Deleted.',
       id
     });
   } catch (error) {
@@ -487,15 +368,20 @@ export async function triggerSchedulerRun(req, res, next) {
  */
 export async function processUserDueScheduledEmails(req, res, next) {
   try {
-    const userId = getAuthenticatedUserId(req);
-    if (!userId) {
+    const owner = getOwnerIdentity(req.user);
+    if (!owner) {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
+    const uid = req.user?._id && mongoose.Types.ObjectId.isValid(String(req.user._id))
+      ? new mongoose.Types.ObjectId(String(req.user._id))
+      : null;
+
     const summary = await processDueScheduledEmails({
       limit: 10,
-      userId,
-      workerId: `user-${userId}`
+      userId: uid,
+      user: req.user,
+      workerId: `user-${owner.ownerKey}`
     });
 
     return res.json({

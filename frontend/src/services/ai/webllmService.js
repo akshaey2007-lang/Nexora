@@ -206,10 +206,10 @@ class WebLLMManager {
       progressText: !webgpu.supported
         ? webgpu.reason
         : this.engine && this.loadedModelId === runtimeId
-        ? `${meta.name} ready locally`
+        ? `${meta.name} ready`
         : cached
-        ? `${meta.name} cached in browser — click Load Local AI to activate instantaneously`
-        : `${meta.name} ready to download (${meta.approxDownload}) when you start AI`
+        ? `${meta.name} cached`
+        : `${meta.name} (${meta.approxDownload})`
     });
 
     return { webgpu, cached, runtimeId };
@@ -304,16 +304,20 @@ class WebLLMManager {
           cached: alreadyCached,
           error: null,
           progressText: alreadyCached
-            ? `Loading ${meta.name} from local browser cache...`
-            : `Downloading & caching ${meta.name} (${meta.approxDownload})...`
+            ? `Loading cached ${meta.name}...`
+            : `Downloading ${meta.name} (${meta.approxDownload})...`
         });
 
         const initProgressCallback = (report) => {
           const pct = typeof report?.progress === 'number' ? Math.max(0, Math.min(1, report.progress)) : 0;
+          const rawText = String(report?.text || '');
+          const friendlyText = alreadyCached
+            ? `Loading from browser cache (${Math.round(pct * 100)}%)`
+            : rawText.replace(/Fetching param cache/i, 'Downloading model');
           this.emit({
             status: 'loading',
             progress: pct,
-            progressText: report?.text || `Preparing model (${Math.round(pct * 100)}%)...`
+            progressText: friendlyText || `${Math.round(pct * 100)}%`
           });
         };
 

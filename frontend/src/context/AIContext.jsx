@@ -25,6 +25,11 @@ export function AIProvider({ children }) {
 
   const [engineState, setEngineState] = useState(() => webllmManager.getState());
   const [storageEstimate, setStorageEstimate] = useState(null);
+  const [isAISidebarOpen, setIsAISidebarOpen] = useState(false);
+
+  const openAISidebar = useCallback(() => setIsAISidebarOpen(true), []);
+  const closeAISidebar = useCallback(() => setIsAISidebarOpen(false), []);
+  const toggleAISidebar = useCallback(() => setIsAISidebarOpen((v) => !v), []);
 
   useEffect(() => {
     const unsubscribe = webllmManager.subscribe((nextState) => {
@@ -58,12 +63,28 @@ export function AIProvider({ children }) {
     [selectedModelId]
   );
 
-  // Check lightweight WebGPU + cache presence once authenticated (zero model downloads)
+  // Check WebGPU + cache on login, and silently load already-cached model from browser SSD into GPU (zero network download)
   useEffect(() => {
-    if (isAuthenticated) {
-      refreshEnvironmentStatus(selectedModelId);
-    }
-  }, [isAuthenticated, selectedModelId, refreshEnvironmentStatus]);
+    let cancelled = false;
+    if (!isAuthenticated) return undefined;
+
+    (async () => {
+      const env = await refreshEnvironmentStatus(selectedModelId);
+      if (
+        !cancelled &&
+        aiEnabled &&
+        env?.webgpu?.supported &&
+        env?.cached &&
+        webllmManager.getState().status === 'idle'
+      ) {
+        webllmManager.initialize(selectedModelId).catch(() => {});
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, aiEnabled, selectedModelId, refreshEnvironmentStatus]);
 
   const updateAISettings = useCallback(
     async ({ aiEnabled: nextEnabled, aiModelId: nextModelId }) => {
@@ -165,7 +186,11 @@ export function AIProvider({ children }) {
         clearAllCachedModels,
         cancelGeneration,
         unloadAI,
-        refreshEnvironmentStatus
+        refreshEnvironmentStatus,
+        isAISidebarOpen,
+        openAISidebar,
+        closeAISidebar,
+        toggleAISidebar
       }}
     >
       {children}

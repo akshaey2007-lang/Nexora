@@ -9,7 +9,6 @@ import { ToastProvider } from './context/ToastContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
-import AIAssistantPage from './pages/AIAssistantPage';
 import ScheduledEmailsPage from './pages/ScheduledEmailsPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthErrorPage from './pages/AuthErrorPage';
@@ -68,17 +67,6 @@ export default function App() {
                     }
                   >
                     <Route index element={<DashboardPage />} />
-                  </Route>
-
-                  <Route
-                    path="/ai"
-                    element={
-                      <ProtectedRoute>
-                        <DashboardLayout />
-                      </ProtectedRoute>
-                    }
-                  >
-                    <Route index element={<AIAssistantPage />} />
                   </Route>
 
                   <Route
